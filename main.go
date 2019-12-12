@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	_ "log"
-	_ "github.com/vsteffen/42_api/constants"
+	_ "github.com/vsteffen/42_api/Constants"
+	_ "github.com/vsteffen/42_api/ReqAPI42"
 )
 
 func main() {
-	init_keys()
-	fmt.Println(g_keys)
+	fmt.Println("Kukou")
 }
