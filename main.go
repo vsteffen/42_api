@@ -1,12 +1,15 @@
 package main
 
 import (
-	"fmt"
-	_ "log"
-	_ "github.com/vsteffen/42_api/Constants"
-	_ "github.com/vsteffen/42_api/ReqAPI42"
+	_ "github.com/vsteffen/42_api/tools/constants"
+	"os"
+	"time"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/vsteffen/42_api/reqApi42"
 )
 
 func main() {
-	fmt.Println("Kukou")
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.Stamp})
+	reqApi42.New()
 }

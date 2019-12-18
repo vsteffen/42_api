@@ -1,6 +1,7 @@
 42_api
 secret
-token
+token_access
+token_refresh
 
 # Binaries for programs and plugins
 *.exe
