@@ -1,14 +1,15 @@
 package tools
 
 import (
-	"golang.org/x/crypto/ssh/terminal"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/ssh/terminal"
 	"syscall"
 )
 
-func ReadAndHideData() (string) {
+// ReadAndHideData read on stdin and hide user input
+func ReadAndHideData() string {
 	byteRead, err := terminal.ReadPassword(int(syscall.Stdin))
-	if (err != nil) {
+	if err != nil {
 		log.Fatal().Err(err)
 	}
 	return string(byteRead)

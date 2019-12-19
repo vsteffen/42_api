@@ -1,60 +1,60 @@
 package reqApi42
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/json"
-	"os"
-	"io/ioutil"
-	"strings"
+	"fmt"
+	"github.com/rs/zerolog/log"
 	"github.com/vsteffen/42_api/tools"
 	cst "github.com/vsteffen/42_api/tools/constants"
-	"github.com/rs/zerolog/log"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 )
 
 type apiKeys struct {
-	uid				string
-	secret			string
-	tokenAccess		string
-	tokenRefresh	string
+	uid          string
+	secret       string
+	tokenAccess  string
+	tokenRefresh string
 }
 
 type tokenReqNew struct {
-	TokenGrant		string	`json:"grant_type"`
-	TokenCltID		string	`json:"client_id"`
-	TokenCltSecret	string	`json:"client_secret"`
-	TokenCode		string	`json:"code"`
-	TokenRedirect	string	`json:"redirect_uri"`
+	TokenGrant     string `json:"grant_type"`
+	TokenCltID     string `json:"client_id"`
+	TokenCltSecret string `json:"client_secret"`
+	TokenCode      string `json:"code"`
+	TokenRedirect  string `json:"redirect_uri"`
 }
 
 type tokenReqRefresh struct {
-	TokenGrant		string	`json:"grant_type"`
-	TokenCltID		string	`json:"client_id"`
-	TokenCltSecret	string	`json:"client_secret"`
-	TokenRefresh	string	`json:"refresh_token"`
+	TokenGrant     string `json:"grant_type"`
+	TokenCltID     string `json:"client_id"`
+	TokenCltSecret string `json:"client_secret"`
+	TokenRefresh   string `json:"refresh_token"`
 }
 
 type tokenRsp struct {
-	TokenAccess		string	`json:"access_token"`
-	TokenType		string	`json:"token_type"`
-	TokenExp		uint64	`json:"expires_in"`
-	TokenRefresh	string	`json:"refresh_token"`
-	TokenScope		string	`json:"scope"`
-	TokenCreat		uint64	`json:"created_at"`
+	TokenAccess  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	TokenExp     uint64 `json:"expires_in"`
+	TokenRefresh string `json:"refresh_token"`
+	TokenScope   string `json:"scope"`
+	TokenCreat   uint64 `json:"created_at"`
 }
 
 func readKeys(pathFile string) (string, error) {
 	file, err := os.Open(pathFile)
-	if (err == nil) {
+	if err == nil {
 		defer file.Close()
 		fileBytes, err := ioutil.ReadFile(pathFile)
-		if (err != nil) {
+		if err != nil {
 			log.Fatal().Err(err).Msg("")
 		}
 		fileString := strings.TrimSpace(string(fileBytes))
-		if (len(fileString) != cst.SizeApiKeys) {
+		if len(fileString) != cst.SizeApiKeys {
 			log.Fatal().Msg("wrong size for " + pathFile)
 		}
 		log.Info().Msg("Found hash " + pathFile)
@@ -63,7 +63,7 @@ func readKeys(pathFile string) (string, error) {
 	return "", err
 }
 
-func (api42 *Api42)setNewToken(newTokenAccess string, newTokenRefresh string) {
+func (api42 *API42) setNewToken(newTokenAccess string, newTokenRefresh string) {
 	err := ioutil.WriteFile(cst.PathTokenAccess, []byte(newTokenAccess), 0644)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to write in file " + cst.PathTokenAccess)
@@ -72,18 +72,19 @@ func (api42 *Api42)setNewToken(newTokenAccess string, newTokenRefresh string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to write in file " + cst.PathTokenRefresh)
 	}
-	api42.keys.tokenAccess  = newTokenAccess
+	api42.keys.tokenAccess = newTokenAccess
 	api42.keys.tokenRefresh = newTokenRefresh
 	log.Info().Msg("New access token and refresh token set")
 }
 
-func (api42 *Api42)RefreshToken() {
+// RefreshToken use the refresh token to renew token access
+func (api42 *API42) RefreshToken() {
 	var err error
-	tokenData := tokenReqRefresh {
-		TokenGrant:		cst.TokenReqGrantRefresh,
-		TokenCltID:		api42.keys.uid,
-		TokenCltSecret:	api42.keys.secret,
-		TokenRefresh:	api42.keys.tokenRefresh,
+	tokenData := tokenReqRefresh{
+		TokenGrant:     cst.TokenReqGrantRefresh,
+		TokenCltID:     api42.keys.uid,
+		TokenCltSecret: api42.keys.secret,
+		TokenRefresh:   api42.keys.tokenRefresh,
 	}
 	tokenJSON, _ := json.Marshal(tokenData)
 
@@ -103,7 +104,8 @@ func (api42 *Api42)RefreshToken() {
 	api42.setNewToken(rspJSON.TokenAccess, rspJSON.TokenRefresh)
 }
 
-func (api42 *Api42)GetNewToken() {
+// GetNewToken ask the 42's API to get a access token and a refresh token
+func (api42 *API42) GetNewToken() {
 	var err error
 
 	urlAuth, _ := url.Parse(cst.AuthURL)
@@ -119,12 +121,12 @@ func (api42 *Api42)GetNewToken() {
 	code := tools.ReadAndHideData()
 	code = strings.TrimSpace(code)
 
-	tokenData := tokenReqNew {
-		TokenGrant:		cst.TokenReqGrantAuthCode,
-		TokenCltID:		api42.keys.uid,
-		TokenCltSecret:	api42.keys.secret,
-		TokenCode:		code,
-		TokenRedirect:	cst.TokenReqRedirectURI,
+	tokenData := tokenReqNew{
+		TokenGrant:     cst.TokenReqGrantAuthCode,
+		TokenCltID:     api42.keys.uid,
+		TokenCltSecret: api42.keys.secret,
+		TokenCode:      code,
+		TokenRedirect:  cst.TokenReqRedirectURI,
 	}
 
 	tokenJSON, _ := json.Marshal(tokenData)
@@ -145,7 +147,7 @@ func (api42 *Api42)GetNewToken() {
 	api42.setNewToken(rspJSON.TokenAccess, rspJSON.TokenRefresh)
 }
 
-func initKeys(api42 *Api42) {
+func initKeys(api42 *API42) {
 	api42.keys.uid = cst.UID
 	var err error
 	if api42.keys.secret, err = readKeys(cst.PathSecret); err != nil {

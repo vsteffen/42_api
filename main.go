@@ -1,12 +1,12 @@
 package main
 
 import (
-	_ "github.com/vsteffen/42_api/tools/constants"
-	"os"
-	"time"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/vsteffen/42_api/reqApi42"
+	_ "github.com/vsteffen/42_api/tools/constants"
+	"os"
+	"time"
 )
 
 func main() {
