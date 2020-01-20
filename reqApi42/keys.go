@@ -45,7 +45,7 @@ type tokenRsp struct {
 	TokenCreat   uint64 `json:"created_at"`
 }
 
-func readKeys(pathFile string) (string, error) {
+func (api42 *API42) readKeys(pathFile string) (string, error) {
 	file, err := os.Open(pathFile)
 	if err == nil {
 		defer file.Close()
@@ -80,6 +80,9 @@ func (api42 *API42) setNewToken(newTokenAccess string, newTokenRefresh string) {
 // RefreshToken use the refresh token to renew token access
 func (api42 *API42) RefreshToken() {
 	var err error
+
+	log.Info().Msg("Refreshing tokens ...")
+
 	tokenData := tokenReqRefresh{
 		TokenGrant:     cst.TokenReqGrantRefresh,
 		TokenCltID:     api42.keys.uid,
@@ -104,8 +107,8 @@ func (api42 *API42) RefreshToken() {
 	api42.setNewToken(rspJSON.TokenAccess, rspJSON.TokenRefresh)
 }
 
-// GetNewToken ask the 42's API to get a access token and a refresh token
-func (api42 *API42) GetNewToken() {
+// NewToken ask the 42's API to get a access token and a refresh token
+func (api42 *API42) NewToken() {
 	var err error
 
 	urlAuth, _ := url.Parse(cst.AuthURL)
@@ -147,21 +150,21 @@ func (api42 *API42) GetNewToken() {
 	api42.setNewToken(rspJSON.TokenAccess, rspJSON.TokenRefresh)
 }
 
-func initKeys(api42 *API42) {
+func (api42 *API42) initKeys() {
 	api42.keys.uid = cst.UID
 	var err error
-	if api42.keys.secret, err = readKeys(cst.PathSecret); err != nil {
+	log.Info().Msg("Initialize keys of reqApi42")
+	if api42.keys.secret, err = api42.readKeys(cst.PathSecret); err != nil {
 		log.Fatal().Err(err).Msg("Failed to read OAuth secret")
 	}
-	if api42.keys.tokenAccess, err = readKeys(cst.PathTokenAccess); err != nil {
+	if api42.keys.tokenAccess, err = api42.readKeys(cst.PathTokenAccess); err != nil {
 		log.Warn().Err(err).Msg("Failed to read OAuth access token")
-		api42.GetNewToken()
+		api42.NewToken()
 	} else {
-		if api42.keys.tokenRefresh, err = readKeys(cst.PathTokenRefresh); err != nil {
+		if api42.keys.tokenRefresh, err = api42.readKeys(cst.PathTokenRefresh); err != nil {
 			log.Fatal().Err(err).Msg("Failed to read OAuth refresh token")
 		} else {
 			log.Info().Msg("All keys are set")
 		}
 	}
-	// api42.RefreshToken()
 }

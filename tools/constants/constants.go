@@ -21,7 +21,16 @@ const (
 	PathTokenAccess  = "./token_access"
 	PathTokenRefresh = "./token_refresh"
 
+	ReqToken  = "access_token"
+	ReqFilter = "filter"
+
+	CampusName = "Paris"
+
+	LocationsURL = BaseURL + "/v2/campus/%d/locations "
+
 	UID = "698c6cc85d07ed45f147486e6630ae9dedad619943999ce345fb958c4867bec9"
 
 	SizeApiKeys = 64
+
+	CampusURL = BaseURL + "/v2/campus"
 )
