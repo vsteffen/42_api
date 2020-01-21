@@ -2,8 +2,12 @@ package constants
 
 const (
 	ProjectName = "Find_Examiner"
-
+	UID = "698c6cc85d07ed45f147486e6630ae9dedad619943999ce345fb958c4867bec9"
 	BaseURL = "https://api.intra.42.fr"
+
+	SizeApiKeys = 64
+
+	API42ArgRefresh	= 0
 
 	AuthURL            = BaseURL + "/oauth/authorize"
 	AuthVarClt         = "client_id"
@@ -28,9 +32,8 @@ const (
 
 	LocationsURL = BaseURL + "/v2/campus/%d/locations "
 
-	UID = "698c6cc85d07ed45f147486e6630ae9dedad619943999ce345fb958c4867bec9"
-
-	SizeApiKeys = 64
-
 	CampusURL = BaseURL + "/v2/campus"
+
+	CursusURL	= BaseURL + "/v2/cursus"
+	CursusName	= "42cursus"
 )

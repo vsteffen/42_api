@@ -15,6 +15,7 @@ import (
 type API42 struct {
 	keys   apiKeys
 	campus uint
+	cursus uint
 }
 
 func (api42 *API42) prepareGetParamURLReq(rawquery string) (*url.URL, *url.Values) {
@@ -27,39 +28,46 @@ func (api42 *API42) prepareGetParamURLReq(rawquery string) (*url.URL, *url.Value
 	return tmpURL, &tmpParamURL
 }
 
-func (api42 *API42) GetCampusID(campusName string) {
+func (api42 *API42) UpdateCampusID(campusName string) (bool) {
 	var err error
 
-	type campusReq struct {
+	type campusRsp struct {
 		ID   uint   `json:"id"`
 		Name string `json:"name"`
 	}
 
 	log.Info().Msg("Search campus ID ...")
 	campusURL, paramURL := api42.prepareGetParamURLReq(cst.CampusURL)
-	paramURL.Add(cst.ReqFilter+"[name]", campusName)
+	paramURL.Add(cst.ReqFilter + "[name]", campusName)
 	campusURL.RawQuery = paramURL.Encode()
 
 	rsp, err := http.Get(campusURL.String())
 	if err != nil {
-		log.Fatal().Err(err).Msg("initCampus: Failed to GET " + campusURL.String())
+		log.Error().Err(err).Msg("UpdateCampusID: Failed to GET " + campusURL.String())
+		return false
 	}
 	defer rsp.Body.Close()
 
 	if rsp.StatusCode != http.StatusOK {
 		bodyBytes, err := ioutil.ReadAll(rsp.Body)
 		if err != nil {
-			log.Fatal().Err(err).Msg("initCampus: Failed to read body response")
+			log.Fatal().Err(err).Msg("UpdateCampusID: Failed to read body response")
 		}
-		log.Fatal().Msg("initCampus: invalid status code " + string(bodyBytes))
+		log.Error().Msg("UpdateCampusID: invalid status code " + string(bodyBytes))
+		return false
 	}
-	rspJSON := make([]campusReq, 0)
+	rspJSON := make([]campusRsp, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
-		log.Fatal().Err(err).Msg("initCampus: Failed to decode JSON values of campus")
+		log.Fatal().Err(err).Msg("UpdateCampusID: Failed to decode JSON values of campus")
+	}
+	if (len(rspJSON) == 0) {
+		log.Error().Msg("UpdateCampusID: no campus found")
+		return false
 	}
 	log.Info().Msg("Found campus Paris ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
 	api42.campus = rspJSON[0].ID
+	return true
 }
 
 func (api42 *API42) UpdateLocations() {
@@ -70,11 +78,65 @@ func (api42 *API42) UpdateLocations() {
 	log.Info().Msg(locationsRealURLStr)
 	locationsURL, paramURL := api42.prepareGetParamURLReq(locationsRealURLStr)
 	locationsURL.RawQuery = paramURL.Encode()
+	//Not finished
+}
+
+func (api42 *API42) UpdateCursusID(cursusName string) (bool) {
+	var err error
+
+	type cursusRsp struct {
+		ID   uint   `json:"id"`
+		Name string `json:"name"`
+	}
+
+	log.Info().Msg("Search cursus ID ...")
+	cursusURL, paramURL := api42.prepareGetParamURLReq(cst.CursusURL)
+	paramURL.Add(cst.ReqFilter + "[name]", cursusName)
+	cursusURL.RawQuery = paramURL.Encode()
+
+	rsp, err := http.Get(cursusURL.String())
+	if err != nil {
+		log.Fatal().Err(err).Msg("UpdateCursusID: Failed to GET " + cursusURL.String())
+		return false
+	}
+	defer rsp.Body.Close()
+
+	if rsp.StatusCode != http.StatusOK {
+		bodyBytes, err := ioutil.ReadAll(rsp.Body)
+		if err != nil {
+			log.Fatal().Err(err).Msg("UpdateCursusID: Failed to read body response")
+		}
+		log.Error().Msg("UpdateCursusID: invalid status code " + string(bodyBytes))
+		return false
+	}
+	rspJSON := make([]cursusRsp, 0)
+	decoder := json.NewDecoder(rsp.Body)
+	if err = decoder.Decode(&rspJSON); err != nil {
+		log.Fatal().Err(err).Msg("UpdateCursusID: Failed to decode JSON values of cursus")
+	}
+	if (len(rspJSON) == 0) {
+		log.Error().Msg("UpdateCursusID: no cursus found")
+		return false
+	}
+	log.Info().Msg("Found cursus '" + cursusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
+	api42.cursus = rspJSON[0].ID
+	return true
+}
+
+func (api42 *API42) GetUsersAvailable() {
+	
 }
 
 // New create new API42 obj
-func New() *API42 {
+func New(args ...bool) *API42 {
 	tmp := API42{}
 	tmp.initKeys()
+	nbArg := len(args)
+	if nbArg > cst.API42ArgRefresh && args[cst.API42ArgRefresh] {
+		tmp.RefreshToken()
+	}
+	if !tmp.UpdateCampusID(cst.CampusName) || !tmp.UpdateCursusID(cst.CursusName) {
+		log.Fatal().Msg("API42.New: failed to initialize API42")
+	}
 	return &tmp
 }
