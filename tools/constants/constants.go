@@ -5,9 +5,16 @@ const (
 	UID = "698c6cc85d07ed45f147486e6630ae9dedad619943999ce345fb958c4867bec9"
 	BaseURL = "https://api.intra.42.fr"
 
+	DefaultCampus = 1
+	DefaultCursus = 21
+
 	SizeApiKeys = 64
 
-	API42ArgRefresh	= 0
+	// API42ArgRefresh		= 0
+	// API42ArgCheckDefaultValues	= 1
+
+	RLPerSecond		= 2
+	RLWaitTimeMsPerSecond	= 1050
 
 	AuthURL            = BaseURL + "/oauth/authorize"
 	AuthVarClt         = "client_id"
@@ -30,10 +37,12 @@ const (
 
 	CampusName = "Paris"
 
-	LocationsURL = BaseURL + "/v2/campus/%d/locations "
+	LocationsURL = BaseURL + "/v2/campus/%d/locations"
 
 	CampusURL = BaseURL + "/v2/campus"
 
 	CursusURL	= BaseURL + "/v2/cursus"
 	CursusName	= "42cursus"
+
+	CursusProjectsURL	= BaseURL + "/v2/cursus/%d/projects"
 )
