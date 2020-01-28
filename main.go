@@ -20,11 +20,4 @@ func main() {
 	api42 := reqApi42.New(flags)
 	// api42.GetCursusProjects()
 	api42.UpdateLocations()
-	api42.UpdateLocations()
-	api42.UpdateLocations()
-	api42.UpdateLocations()
-	api42.UpdateLocations()
-	time.Sleep(time.Second * 2)
-	api42.UpdateLocations()
-	api42.UpdateLocations()
 }

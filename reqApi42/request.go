@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
+	"runtime"
 )
 
 // API42 type which use to interact with 42's API
@@ -36,7 +38,7 @@ func (api42 *API42) prepareGetParamURLReq(rawquery string) (*url.URL, *url.Value
 	return tmpURL, &tmpParamURL
 }
 
-func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response, error) {
+func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
 	now := time.Now()
 	waitTime := api42.rlLastReqSec.Add(time.Millisecond * cst.RLWaitTimeMsPerSecond)
 	nowBeforeWait := now.Before(waitTime)
@@ -44,17 +46,30 @@ func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response, error) {
 		time.Sleep(waitTime.Sub(now))
 		api42.rlLastReqSec = time.Now()
 		api42.rlNbReqSec = 1
-		fmt.Println("TOO EARLY")
 	} else {
 		api42.rlLastReqSec = now
 		api42.rlNbReqSec += 1
 		if nowBeforeWait == false {
 			api42.rlNbReqSec = 1
 		}
-		fmt.Println("GOOD TIMING")
 	}
 	rsp, err := http.Get(getURL.String())
-	return rsp, err
+	pc, _, _, _ := runtime.Caller(1)
+	callerFuncName := runtime.FuncForPC(pc).Name()
+	callerFuncNameShort := callerFuncName[strings.LastIndex(callerFuncName, ".") + 1 : ]
+	if err != nil {
+		log.Fatal().Err(err).Msg(callerFuncNameShort + ": Failed to GET " + getURL.String())
+	}
+	if rsp.StatusCode != http.StatusOK {
+		defer rsp.Body.Close()
+		bodyBytes, err := ioutil.ReadAll(rsp.Body)
+		if err != nil {
+			log.Fatal().Err(err).Msg(callerFuncNameShort + ": Failed to read body response")
+		}
+		log.Error().Msg(callerFuncNameShort + ": invalid status code " + string(bodyBytes))
+		return nil
+	}
+	return rsp
 }
 
 func (api42 *API42) UpdateCampusID(campusName string) (bool) {
@@ -69,21 +84,12 @@ func (api42 *API42) UpdateCampusID(campusName string) (bool) {
 	paramURL.Add(cst.ReqFilter + "[name]", campusName)
 	campusURL.RawQuery = paramURL.Encode()
 
-	rsp, err := api42.executeGetURLReq(campusURL)
-	if err != nil {
-		log.Error().Err(err).Msg("UpdateCampusID: Failed to GET " + campusURL.String())
+	rsp := api42.executeGetURLReq(campusURL)
+	if rsp == nil {
 		return false
 	}
 	defer rsp.Body.Close()
 
-	if rsp.StatusCode != http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(rsp.Body)
-		if err != nil {
-			log.Fatal().Err(err).Msg("UpdateCampusID: Failed to read body response")
-		}
-		log.Error().Msg("UpdateCampusID: invalid status code " + string(bodyBytes))
-		return false
-	}
 	rspJSON := make([]campusRsp, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
@@ -98,7 +104,7 @@ func (api42 *API42) UpdateCampusID(campusName string) (bool) {
 	return true
 }
 
-func (api42 *API42) UpdateLocations() {
+func (api42 *API42) UpdateLocations() (bool) {
 	// var err error
 
 	log.Info().Msg("Updating locations ...")
@@ -107,13 +113,28 @@ func (api42 *API42) UpdateLocations() {
 	locationsURL, paramURL := api42.prepareGetParamURLReq(locationsParsedURL)
 	locationsURL.RawQuery = paramURL.Encode()
 
-	rsp, err := api42.executeGetURLReq(locationsURL)
-	_ = rsp
-	_ = err
+	rsp := api42.executeGetURLReq(locationsURL)
+	if rsp == nil {
+		return false
+	}
+	defer rsp.Body.Close()
+
+	// rspJSON := make([]cursusRsp, 0)
+	// decoder := json.NewDecoder(rsp.Body)
+	// if err = decoder.Decode(&rspJSON); err != nil {
+	// 	log.Fatal().Err(err).Msg("UpdateLocation: Failed to decode JSON values of cursus")
+	// }
+	// if (len(rspJSON) == 0) {
+	// 	log.Error().Msg("UpdateLocation: no cursus found")
+	// 	return false
+	// }
+	// log.Info().Msg("Found cursus '" + cursusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
+	// api42.cursus = rspJSON[0].ID
+	return true
 }
 
 func (api42 *API42) UpdateCursusID(cursusName string) (bool) {
-	// var err error
+	var err error
 
 	type cursusRsp struct {
 		ID   uint   `json:"id"`
@@ -124,21 +145,12 @@ func (api42 *API42) UpdateCursusID(cursusName string) (bool) {
 	paramURL.Add(cst.ReqFilter + "[name]", cursusName)
 	cursusURL.RawQuery = paramURL.Encode()
 
-	rsp, err := api42.executeGetURLReq(cursusURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("UpdateCursusID: Failed to GET " + cursusURL.String())
+	rsp := api42.executeGetURLReq(cursusURL)
+	if rsp == nil {
 		return false
 	}
 	defer rsp.Body.Close()
 
-	if rsp.StatusCode != http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(rsp.Body)
-		if err != nil {
-			log.Fatal().Err(err).Msg("UpdateCursusID: Failed to read body response")
-		}
-		log.Error().Msg("UpdateCursusID: invalid status code " + string(bodyBytes))
-		return false
-	}
 	rspJSON := make([]cursusRsp, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
@@ -154,31 +166,24 @@ func (api42 *API42) UpdateCursusID(cursusName string) (bool) {
 }
 
 func (api42 *API42) GetCursusProjects() ([]API42Project, bool) {
-	var err error
+	// var err error
 
 	cursusProjectsParsedURL := fmt.Sprintf(cst.CursusProjectsURL, api42.cursus)
 	cursusProjectsURL, paramURL := api42.prepareGetParamURLReq(cursusProjectsParsedURL)
 	// paramURL.Add(cst.ReqFilter + "[name]", cursusName)
 	cursusProjectsURL.RawQuery = paramURL.Encode()
 
-	rsp, err := api42.executeGetURLReq(cursusProjectsURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("UpdateProjectsID: Failed to GET " + cursusProjectsURL.String())
+	rsp := api42.executeGetURLReq(cursusProjectsURL)
+	if rsp == nil {
 		return nil, false
 	}
 	defer rsp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	fmt.Println(string(bodyBytes))
-
-	// if rsp.StatusCode != http.StatusOK {
-	// 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	// 	if err != nil {
-	// 		log.Fatal().Err(err).Msg("UpdateCursusID: Failed to read body response")
-	// 	}
-	// 	log.Error().Msg("UpdateCursusID: invalid status code " + string(bodyBytes))
-	// 	return nil, false
+	// bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msg("GetCursusProjects: Failed to read body response")
 	// }
+	// fmt.Println(string(bodyBytes))
 	// rspJSON := make([]cursusRsp, 0)
 	// decoder := json.NewDecoder(rsp.Body)
 	// if err = decoder.Decode(&rspJSON); err != nil {
