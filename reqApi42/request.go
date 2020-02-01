@@ -16,16 +16,57 @@ import (
 
 // API42 type which use to interact with 42's API
 type API42 struct {
-	keys   	apiKeys
+	keys		apiKeys
 	rlLastReqSec	time.Time
 	rlNbReqSec	uint
-	campus	uint
-	cursus	uint
+	campus		uint
+	cursus		uint
 }
 
 type API42Project struct {
-	ID   uint   `json:"id"`
-	Name string `json:"name"`
+	ID	uint	`json:"id"`
+	Name	string	`json:"name"`
+}
+
+type JSONTime struct {
+	time.Time
+}
+
+type API42Location struct {
+	ID	uint	`json:"id"`
+	EndAt	JSONTime `json:"end_at"`
+	Host	string	`json:"host"`
+	User struct {
+		ID	uint	`json:"id"`
+		Login	string	`json:"login"`
+	}
+
+	// Floor	uint	`json:"floor"`
+	// Row	uint	`json:"row"`
+	// Post	uint	`json:"post"`
+}
+
+func (jsonVal *JSONTime) UnmarshalJSON(b []byte) error {
+    str := string(b)
+    if str == "null" {
+	    *jsonVal = JSONTime{time.Time{}}
+	    return nil
+    }
+    timeFormated := strings.Trim(str, "\"")
+    timeVal, err := time.Parse(time.RFC3339, timeFormated)
+    if err != nil {
+        return err
+    }
+    *jsonVal = JSONTime{timeVal}
+    return nil
+}
+
+func (api42 *API42) debugPrintRsp(rsp *http.Response) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	if err != nil {
+		log.Fatal().Err(err).Msg("GetCursusProjects: Failed to read body response")
+	}
+	fmt.Println(string(bodyBytes))
 }
 
 func (api42 *API42) prepareGetParamURLReq(rawquery string) (*url.URL, *url.Values) {
@@ -105,7 +146,7 @@ func (api42 *API42) UpdateCampusID(campusName string) (bool) {
 }
 
 func (api42 *API42) UpdateLocations() (bool) {
-	// var err error
+	var err error
 
 	log.Info().Msg("Updating locations ...")
 	locationsParsedURL := fmt.Sprintf(cst.LocationsURL, api42.campus)
@@ -119,15 +160,17 @@ func (api42 *API42) UpdateLocations() (bool) {
 	}
 	defer rsp.Body.Close()
 
-	// rspJSON := make([]cursusRsp, 0)
-	// decoder := json.NewDecoder(rsp.Body)
-	// if err = decoder.Decode(&rspJSON); err != nil {
-	// 	log.Fatal().Err(err).Msg("UpdateLocation: Failed to decode JSON values of cursus")
-	// }
-	// if (len(rspJSON) == 0) {
-	// 	log.Error().Msg("UpdateLocation: no cursus found")
-	// 	return false
-	// }
+	rspJSON := make([]API42Location, 0)
+	decoder := json.NewDecoder(rsp.Body)
+	if err = decoder.Decode(&rspJSON); err != nil {
+		log.Fatal().Err(err).Msg("UpdateLocations: Failed to decode JSON values of location")
+	}
+	if (len(rspJSON) == 0) {
+		log.Error().Msg("UpdateLocations: no location found")
+		return false
+	}
+	fmt.Println(rspJSON)
+
 	// log.Info().Msg("Found cursus '" + cursusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
 	// api42.cursus = rspJSON[0].ID
 	return true
