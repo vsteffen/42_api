@@ -21,6 +21,7 @@ type API42 struct {
 	rlNbReqSec	uint
 	campus		uint
 	cursus		uint
+	locations	[]API42Location
 }
 
 type API42Project struct {
@@ -149,30 +150,40 @@ func (api42 *API42) UpdateLocations() (bool) {
 	var err error
 
 	log.Info().Msg("Updating locations ...")
+	api42.locations = nil
 	locationsParsedURL := fmt.Sprintf(cst.LocationsURL, api42.campus)
-	log.Info().Msg(locationsParsedURL)
 	locationsURL, paramURL := api42.prepareGetParamURLReq(locationsParsedURL)
-	locationsURL.RawQuery = paramURL.Encode()
+	paramURL.Add(cst.ReqFilter + "[active]", "true")
+	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
 
-	rsp := api42.executeGetURLReq(locationsURL)
-	if rsp == nil {
+	for i := 1; ; i++ {
+		pageNumberStr := strconv.Itoa(i)
+		log.Info().Msg("UpdateLocations: GET page " + pageNumberStr + " ...")
+		paramURL.Set(cst.ReqPage, pageNumberStr)
+		locationsURL.RawQuery = paramURL.Encode()
+
+		rsp := api42.executeGetURLReq(locationsURL)
+		if rsp == nil {
+			return false
+		}
+		defer rsp.Body.Close()
+
+		rspJSON := make([]API42Location, 0)
+		decoder := json.NewDecoder(rsp.Body)
+		if err = decoder.Decode(&rspJSON); err != nil {
+			log.Fatal().Err(err).Msg("UpdateLocations: Failed to decode JSON values of location")
+		}
+		if (len(rspJSON) == 0) {
+			break
+		}
+		api42.locations = append(api42.locations, rspJSON...)
+	}
+
+	if (len(api42.locations) == 0) {
+		log.Warn().Msg("UpdateLocations: no location found")
 		return false
 	}
-	defer rsp.Body.Close()
-
-	rspJSON := make([]API42Location, 0)
-	decoder := json.NewDecoder(rsp.Body)
-	if err = decoder.Decode(&rspJSON); err != nil {
-		log.Fatal().Err(err).Msg("UpdateLocations: Failed to decode JSON values of location")
-	}
-	if (len(rspJSON) == 0) {
-		log.Error().Msg("UpdateLocations: no location found")
-		return false
-	}
-	fmt.Println(rspJSON)
-
-	// log.Info().Msg("Found cursus '" + cursusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
-	// api42.cursus = rspJSON[0].ID
+	log.Info().Msg("UpdateLocations: locations updated")
 	return true
 }
 
