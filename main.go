@@ -8,6 +8,7 @@ import (
 	_ "github.com/vsteffen/42_api/tools/constants"
 	"os"
 	"time"
+	"fmt"
 )
 
 func main() {
@@ -18,6 +19,5 @@ func main() {
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.Stamp})
 	api42 := reqApi42.New(flags)
-	// api42.GetCursusProjects()
-	api42.UpdateLocations()
+	fmt.Println(api42.GetProjects())
 }

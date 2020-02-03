@@ -47,5 +47,5 @@ const (
 	CursusURL	= BaseURL + "/v2/cursus"
 	CursusName	= "42cursus"
 
-	CursusProjectsURL = BaseURL + "/v2/cursus/%d/projects"
+	ProjectsURL = BaseURL + "/v2/me/projects"
 )
