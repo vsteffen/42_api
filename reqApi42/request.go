@@ -46,7 +46,7 @@ type API42Location struct {
 type API42Project struct {
 	ID	uint			`json:"id"`
 	Name	string			`json:"name"`
-	Parent	*JSONProjectParent	`json:"parent"`
+	Parent	*API42ProjectParent	`json:"parent"`
 	Campus []struct {
 		ID	uint	`json:"id"`
 	} `json:"campus"`
@@ -142,7 +142,7 @@ func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
 	return rsp
 }
 
-func (api42 *API42) UpdateCampusID(campusName string) (bool) {
+func (api42 *API42) UpdateCampus(campusName string) (bool) {
 	var err error
 
 	type campusRsp struct {
@@ -163,10 +163,10 @@ func (api42 *API42) UpdateCampusID(campusName string) (bool) {
 	rspJSON := make([]campusRsp, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
-		log.Fatal().Err(err).Msg("UpdateCampusID: Failed to decode JSON values of campus")
+		log.Fatal().Err(err).Msg("UpdateCampus: Failed to decode JSON values of campus")
 	}
 	if (len(rspJSON) == 0) {
-		log.Error().Msg("UpdateCampusID: no campus found")
+		log.Error().Msg("UpdateCampus: no campus found")
 		return false
 	}
 	log.Info().Msg("Found campus '" + cst.CampusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
@@ -215,7 +215,7 @@ func (api42 *API42) UpdateLocations() (bool) {
 	return true
 }
 
-func (api42 *API42) UpdateCursusID(cursusName string) (bool) {
+func (api42 *API42) UpdateCursus(cursusName string) (bool) {
 	var err error
 
 	type cursusRsp struct {
@@ -236,10 +236,10 @@ func (api42 *API42) UpdateCursusID(cursusName string) (bool) {
 	rspJSON := make([]cursusRsp, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
-		log.Fatal().Err(err).Msg("UpdateCursusID: Failed to decode JSON values of cursus")
+		log.Fatal().Err(err).Msg("UpdateCursus: Failed to decode JSON values of cursus")
 	}
 	if (len(rspJSON) == 0) {
-		log.Error().Msg("UpdateCursusID: no cursus found")
+		log.Error().Msg("UpdateCursus: no cursus found")
 		return false
 	}
 	log.Info().Msg("Found cursus '" + cursusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
@@ -274,7 +274,7 @@ func (api42 *API42) UpdateProjects() (bool) {
 		rspJSON := make([]API42Project, 0)
 		decoder := json.NewDecoder(rsp.Body)
 		if err = decoder.Decode(&rspJSON); err != nil {
-			log.Fatal().Err(err).Msg("UpdateProjects: Failed to decode JSON values of project")
+			log.Fatal().Err(err).Msg("UpdateProjects: Failed to decode JSON values of a project")
 		}
 		if (len(rspJSON) == 0) {
 			break
@@ -318,7 +318,7 @@ func New(flags []interface{}) *API42 {
 	}
 
 	if *flags[1].(*bool) {
-		if !tmp.UpdateCampusID(cst.CampusName) || !tmp.UpdateCursusID(cst.CursusName) {
+		if !tmp.UpdateCampus(cst.CampusName) || !tmp.UpdateCursus(cst.CursusName) {
 			log.Fatal().Msg("API42.New: failed to initialize API42")
 		}
 	} else {
