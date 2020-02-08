@@ -5,7 +5,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/vsteffen/42_api/reqApi42"
-	_ "github.com/vsteffen/42_api/tools"
+	"github.com/vsteffen/42_api/tools"
 	cst "github.com/vsteffen/42_api/tools/constants"
 	"os"
 	"time"
@@ -38,26 +38,142 @@ func askStringClean (askStr string) (string) {
 	return str
 }
 
-func findExaminer(api42 *reqApi42.API42) {
+func findProjectName(searchStr string, projects *[]*reqApi42.API42Project) ([]*reqApi42.API42Project, []string, bool) {
+	matchProjects := make([]*reqApi42.API42Project, cst.FindNameMaxResults)
+	matchCosts := make([]int, cst.FindNameMaxResults)
+	highestCost := cst.MaxInt
+
+	for indexInit, _ := range matchCosts {
+		matchCosts[indexInit] = cst.MaxInt
+	}
+
+	for indexProject, project := range *projects {
+		currentCost := tools.EditDistance(searchStr, project.Name)
+		if currentCost == 0 {
+			matchCosts[0] = currentCost
+			matchProjects[0] = (*projects)[indexProject]
+			return matchProjects, []string{project.Name}, true
+		}
+		if currentCost < highestCost {
+			for indexMatchCost, cost := range matchCosts {
+				if currentCost < cost {
+					copy(matchCosts[indexMatchCost + 1:], matchCosts[indexMatchCost:])
+					copy(matchProjects[indexMatchCost + 1:], matchProjects[indexMatchCost:])
+					matchCosts[indexMatchCost] = currentCost
+					matchProjects[indexMatchCost] = (*projects)[indexProject]
+					if indexMatchCost + 1 == cst.FindNameMaxResults {
+						highestCost = currentCost
+					}
+					break
+				}
+			}
+		}
+	}
+	matchStrings := make([]string, 0)
+	for _, project := range matchProjects {
+		if project == nil {
+			break
+		}
+		matchStrings = append(matchStrings, project.Name)
+	}
+	return matchProjects, matchStrings, false
+}
+
+func findProjectParentName(searchStr string, parents *map[uint]*projectParent) ([]*projectParent, []string, bool) {
+	matchParent := make([]*projectParent, cst.FindNameMaxResults)
+	matchCosts := make([]int, cst.FindNameMaxResults)
+	highestCost := cst.MaxInt
+
+	for indexInit, _ := range matchCosts {
+		matchCosts[indexInit] = cst.MaxInt
+	}
+
+	for indexProject, project := range *parents {
+		currentCost := tools.EditDistance(searchStr, project.this.Name)
+		if currentCost == 0 {
+			matchCosts[0] = currentCost
+			matchParent[0] = (*parents)[indexProject]
+			return matchParent, []string{project.this.Name}, true
+		}
+		if currentCost < highestCost {
+			for indexMatchCost, cost := range matchCosts {
+				if currentCost < cost {
+					copy(matchCosts[indexMatchCost + 1:], matchCosts[indexMatchCost:])
+					copy(matchParent[indexMatchCost + 1:], matchParent[indexMatchCost:])
+					matchCosts[indexMatchCost] = currentCost
+					matchParent[indexMatchCost] = (*parents)[indexProject]
+					if indexMatchCost + 1 == cst.FindNameMaxResults {
+						highestCost = currentCost
+					}
+					break
+				}
+			}
+		}
+	}
+	matchStrings := make([]string, 0)
+	for _, parent := range matchParent {
+		matchStrings = append(matchStrings, parent.this.Name)
+	}
+	return matchParent, matchStrings, false
+}
+
+func getIndexNameChoice(items []string) (int) {
+	items = append(items, "Cancel")
 	prompt := promptui.Select{
-		Label:	"Does your project have a parent?",
+		Label:	"Found these projects name. Choose or cancel",
+		Items:	items,
+		HideHelp: true,
+	}
+	indexProjectFind, _, err := prompt.Run()
+	if err != nil {
+		log.Fatal().Err(err).Msg("PromptUI: failed")
+	}
+	if indexProjectFind == cst.FindNameMaxResults {
+		return -1
+	}
+	return indexProjectFind
+}
+
+func findExaminer(allProjects *projectsPerType) {
+	prompt := promptui.Select{
+		Label:	"Does your project have a parent",
 		Items:	[]string{"Yes", "No"},
 		HideHelp: true,
 	}
-	indexAction, input, err := prompt.Run()
-
+	indexAction, _, err := prompt.Run()
 	if err != nil {
 		log.Fatal().Err(err).Msg("PromptUI: failed")
 	}
 
-	var parentProjectName string
+	var realProjectsToSearch *[]*reqApi42.API42Project
 	if indexAction == 0 {
-		parentProjectName = askStringClean("Please, enter the parent project name: ")
+		parentProjectName := askStringClean("Please, enter the parent project name: ")
+		parentFind, parentsFindNames, fullMatch := findProjectParentName(parentProjectName, &allProjects.parents)
+		if fullMatch {
+			realProjectsToSearch = &(parentFind[0].sons)
+		} else {
+			indexChoose := getIndexNameChoice(parentsFindNames)
+			if indexChoose == -1 {
+				return
+			}
+			realProjectsToSearch = &(parentFind[indexChoose].sons)
+		}
 	} else {
-		fmt.Println("Not a parent")
+		realProjectsToSearch = &allProjects.directs
 	}
-	_ = parentProjectName
-	fmt.Println(input)
+	projectName := askStringClean("Please, enter the project name: ")
+	projectsFind, projectsFindNames, fullMatch := findProjectName(projectName, realProjectsToSearch)
+	var projectSelected *reqApi42.API42Project
+	if fullMatch {
+		projectSelected = projectsFind[0]
+	} else {
+		indexChoose := getIndexNameChoice(projectsFindNames)
+		if indexChoose == -1 {
+			return
+		}
+		projectSelected = projectsFind[indexChoose]
+	}
+	fmt.Println(projectSelected)
 }
 
 func sortProjectsPerType(api42Projects *[]reqApi42.API42Project) (*projectsPerType) {
@@ -112,12 +228,18 @@ func main() {
 
 	api42 := reqApi42.New(flags)
 	allProjects := sortProjectsPerType(api42.GetProjects())
-	debugPrintProjectsPerType(allProjects)
-	// os.Exit(0)
-	// _ = allProjects
+
 	var indexAction int
 	var err error
-	menuActions := []string{cst.MenuActionFind, cst.MenuActionUpdateLocations, cst.MenuActionUpdateProjects, cst.MenuActionUpdateCursus, cst.MenuActionUpdateCampus, cst.MenuActionQuit}
+	menuActions := []string{
+		cst.MenuActionFind,
+		cst.MenuActionUpdateLocations,
+		cst.MenuActionUpdateProjects,
+		cst.MenuActionUpdateCursus,
+		cst.MenuActionUpdateCampus,
+		cst.MenuActionRefreshTokens,
+		cst.MenuActionQuit,
+	}
 	for {
 		prompt := promptui.Select{
 			Label:	"Choose an action",
@@ -128,12 +250,16 @@ func main() {
 		indexAction, _, err = prompt.Run()
 
 		if err != nil {
-			log.Fatal().Err(err).Msg("PromptUI: failed")
+			log.Fatal().Err(err).Msg("Prompt: failed")
 		}
 
 		switch menuActions[indexAction] {
 		case cst.MenuActionFind:
-			findExaminer(api42)
+			if len(allProjects.directs) == 0 || len(allProjects.parents) == 0 {
+				log.Error().Msg("Prompt: list of projects empty")
+			} else {
+				findExaminer(allProjects)
+			}
 		case cst.MenuActionUpdateLocations:
 			api42.UpdateLocations()
 		case cst.MenuActionUpdateProjects:
@@ -145,22 +271,16 @@ func main() {
 		case cst.MenuActionUpdateCampus:
 			campusName := askStringClean("Please, enter the campus name: ")
 			api42.UpdateCampus(campusName)
+		case cst.MenuActionRefreshTokens:
+			api42.RefreshToken()
 		case cst.MenuActionQuit:
 			fmt.Println("Goodbye!")
 			os.Exit(0)
 		default:
-			log.Fatal().Msg("PromptUI: indexAction out of bound")
+			log.Fatal().Msg("Prompt: indexAction out of bound")
 		}
 
 	}
-
-	// fmt.Printf("You choose %s\n", input)
-
-
-
-
-
-	// fmt.Println(api42.GetProjects())
 }
 
 
@@ -172,5 +292,6 @@ func main() {
 	---> Project parent ?
 		---> Search your project
 			---> Show n results or matching project
+--> Refresh tokens
 --> Exit
 */

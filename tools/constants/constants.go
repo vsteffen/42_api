@@ -56,5 +56,12 @@ const (
 	MenuActionUpdateProjects	= "Update projects  (use cursus and campus values)"
 	MenuActionUpdateCursus		= "Update cursus"
 	MenuActionUpdateCampus		= "Update campus"
+	MenuActionRefreshTokens		= "Refresh API tokens"
 	MenuActionQuit			= "Quit"
+
+	FindNameMaxResults		= 3
+
+	MaxUint	= ^uint(0)
+	MaxInt	= int(MaxUint >> 1)
+
 )
