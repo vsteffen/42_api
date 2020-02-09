@@ -17,7 +17,7 @@ import (
 
 type projectParent struct {
 	this	*reqApi42.API42ProjectParent
-	sons	[]*reqApi42.API42Project
+	childs	[]*reqApi42.API42Project
 }
 
 type projectsPerType struct {
@@ -134,7 +134,7 @@ func getIndexNameChoice(items []string) (int) {
 	return indexProjectFind
 }
 
-func findExaminer(allProjects *projectsPerType) {
+func findExaminer(api42 *reqApi42.API42, allProjects *projectsPerType) {
 	prompt := promptui.Select{
 		Label:	"Does your project have a parent",
 		Items:	[]string{"Yes", "No"},
@@ -150,13 +150,13 @@ func findExaminer(allProjects *projectsPerType) {
 		parentProjectName := askStringClean("Please, enter the parent project name: ")
 		parentFind, parentsFindNames, fullMatch := findProjectParentName(parentProjectName, &allProjects.parents)
 		if fullMatch {
-			realProjectsToSearch = &(parentFind[0].sons)
+			realProjectsToSearch = &(parentFind[0].childs)
 		} else {
 			indexChoose := getIndexNameChoice(parentsFindNames)
 			if indexChoose == -1 {
 				return
 			}
-			realProjectsToSearch = &(parentFind[indexChoose].sons)
+			realProjectsToSearch = &(parentFind[indexChoose].childs)
 		}
 	} else {
 		realProjectsToSearch = &allProjects.directs
@@ -174,6 +174,7 @@ func findExaminer(allProjects *projectsPerType) {
 		projectSelected = projectsFind[indexChoose]
 	}
 	fmt.Println(projectSelected)
+	api42.GetUsersOfProjectsUsers((*projectSelected).ID)
 }
 
 func sortProjectsPerType(api42Projects *[]reqApi42.API42Project) (*projectsPerType) {
@@ -188,7 +189,7 @@ func sortProjectsPerType(api42Projects *[]reqApi42.API42Project) (*projectsPerTy
 			if parentMapValue, ok := allProjects.parents[projectDeref.Parent.ID]; !ok {
 				allProjects.parents[projectDeref.Parent.ID] = &projectParent{projectDeref.Parent, []*reqApi42.API42Project{&(*api42Projects)[index]}}
 			} else {
-				parentMapValue.sons = append(parentMapValue.sons, &(*api42Projects)[index])
+				parentMapValue.childs = append(parentMapValue.childs, &(*api42Projects)[index])
 			}
 		}
 	}
@@ -199,7 +200,7 @@ func debugPrintProjectsPerType(allProjects *projectsPerType) {
 	fmt.Println("###################################")
 	for _, parent := range allProjects.parents {
 		fmt.Println(parent.this.Name)
-		for _, son := range parent.sons {
+		for _, son := range parent.childs {
 			fmt.Println("-> " + son.Name)
 		}
 		fmt.Println("----------------")
@@ -228,6 +229,8 @@ func main() {
 
 	api42 := reqApi42.New(flags)
 	allProjects := sortProjectsPerType(api42.GetProjects())
+
+	api42.GetUsersOfProjectsUsers(1442)
 
 	var indexAction int
 	var err error
@@ -258,7 +261,7 @@ func main() {
 			if len(allProjects.directs) == 0 || len(allProjects.parents) == 0 {
 				log.Error().Msg("Prompt: list of projects empty")
 			} else {
-				findExaminer(allProjects)
+				findExaminer(api42, allProjects)
 			}
 		case cst.MenuActionUpdateLocations:
 			api42.UpdateLocations()

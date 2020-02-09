@@ -49,6 +49,8 @@ const (
 
 	ProjectsURL = BaseURL + "/v2/me/projects"
 
+	ProjectsUsersURL = BaseURL + "/v2/projects_users"
+
 	MenuHello	= "Find_Examiner v1.0\n"
 
 	MenuActionFind			= "Find examiner    (use projects values)"

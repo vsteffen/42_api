@@ -33,29 +33,44 @@ type JSONTime struct {
 	time.Time
 }
 
-type API42Location struct {
+type API42User struct {
 	ID	uint	`json:"id"`
-	EndAt	JSONTime `json:"end_at"`
-	Host	string	`json:"host"`
-	User struct {
-		ID	uint	`json:"id"`
-		Login	string	`json:"login"`
-	} `json:"user"`
+	Login	string	`json:"login"`
+}
+
+type API42Cursus struct {
+	ID	uint	`json:"id"`
+	Name	string	`json:"name"`
+}
+
+type API42Campus struct {
+	ID	uint	`json:"id"`
+	Name	string	`json:"name"`
+}
+
+type API42Location struct {
+	// ID	uint		`json:"id"`
+	// EndAt	JSONTime	`json:"end_at"`
+	Host	string		`json:"host"`
+	User	API42User 	`json:"user"`
 }
 
 type API42Project struct {
 	ID	uint			`json:"id"`
 	Name	string			`json:"name"`
 	Parent	*API42ProjectParent	`json:"parent"`
-	Campus []struct {
-		ID	uint	`json:"id"`
-	} `json:"campus"`
+	Campus	[]API42Campus		`json:"campus"`
+}
+
+type API42ProjectUser struct {
+	ID	uint		`json:"id"`
+	User	API42User	`json:"user"`
 }
 
 type API42ProjectParent struct {
-	ID	uint			`json:"id"`
-	Name	string			`json:"name"`
-	Slug	string			`json:"slug"`
+	ID	uint	`json:"id"`
+	Name	string	`json:"name"`
+	// Slug	string	`json:"slug"`
 }
 
 func (jsonVal *JSONTime) UnmarshalJSON(b []byte) error {
@@ -145,11 +160,6 @@ func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
 func (api42 *API42) UpdateCampus(campusName string) (bool) {
 	var err error
 
-	type campusRsp struct {
-		ID   uint   `json:"id"`
-		Name string `json:"name"`
-	}
-
 	campusURL, paramURL := api42.prepareGetParamURLReq(cst.CampusURL)
 	paramURL.Add(cst.ReqFilter + "[name]", campusName)
 	campusURL.RawQuery = paramURL.Encode()
@@ -160,7 +170,7 @@ func (api42 *API42) UpdateCampus(campusName string) (bool) {
 	}
 	defer rsp.Body.Close()
 
-	rspJSON := make([]campusRsp, 0)
+	rspJSON := make([]API42Campus, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
 		log.Fatal().Err(err).Msg("UpdateCampus: Failed to decode JSON values of campus")
@@ -218,11 +228,6 @@ func (api42 *API42) UpdateLocations() (bool) {
 func (api42 *API42) UpdateCursus(cursusName string) (bool) {
 	var err error
 
-	type cursusRsp struct {
-		ID   uint   `json:"id"`
-		Name string `json:"name"`
-	}
-
 	cursusURL, paramURL := api42.prepareGetParamURLReq(cst.CursusURL)
 	paramURL.Add(cst.ReqFilter + "[name]", cursusName)
 	cursusURL.RawQuery = paramURL.Encode()
@@ -233,7 +238,7 @@ func (api42 *API42) UpdateCursus(cursusName string) (bool) {
 	}
 	defer rsp.Body.Close()
 
-	rspJSON := make([]cursusRsp, 0)
+	rspJSON := make([]API42Cursus, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
 		log.Fatal().Err(err).Msg("UpdateCursus: Failed to decode JSON values of cursus")
@@ -251,15 +256,16 @@ func (api42 *API42) UpdateProjects() (bool) {
 	var err error
 
 	log.Info().Msg("Updating projects ...")
+	api42.projects = nil
 	projectsURL, paramURL := api42.prepareGetParamURLReq(cst.ProjectsURL)
-	paramURL.Add("cursus_id", strconv.FormatUint(uint64(api42.campus), 10))
+	paramURL.Add("cursus_id", strconv.FormatUint(uint64(api42.cursus), 10))
 	paramURL.Add(cst.ReqFilter + "[has_git]", "true")
 	paramURL.Add(cst.ReqFilter + "[has_mark]", "true")
 	paramURL.Add(cst.ReqFilter + "[visible]", "true")
 	paramURL.Add(cst.ReqFilter + "[exam]", "false")
 	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
 
-	for i := 1; i < 2 /*To remove*/; i++ {
+	for i := 1; ; i++ {
 		pageNumberStr := strconv.Itoa(i)
 		log.Info().Msg("UpdateProjects: GET page " + pageNumberStr + " ...")
 		paramURL.Set(cst.ReqPage, pageNumberStr)
@@ -305,6 +311,55 @@ func (api42 *API42) UpdateProjects() (bool) {
 
 func (api42 *API42) GetProjects() (*[]API42Project) {
 	return &api42.projects
+}
+
+func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) (*[]API42ProjectUser) {
+	var err error
+
+	projectIDStr := strconv.FormatUint(uint64(projectID), 10)
+	log.Info().Msg("GetUsersOfProjectsUsers: searching with project ID = " + projectIDStr + " ...")
+	projectsUserURL, paramURL := api42.prepareGetParamURLReq(cst.ProjectsUsersURL)
+	paramURL.Add(cst.ReqFilter + "[project_id]", projectIDStr)
+	paramURL.Add(cst.ReqFilter + "[cursus]", strconv.FormatUint(uint64(api42.cursus), 10))
+	paramURL.Add(cst.ReqFilter + "[campus]", strconv.FormatUint(uint64(api42.campus), 10))
+	paramURL.Add(cst.ReqFilter + "[marked]", "true")
+	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
+	projectsUserURL.RawQuery = paramURL.Encode()
+
+	projectsUsers := make([]API42ProjectUser, 0)
+	for i := 1; ; i++ {
+		pageNumberStr := strconv.Itoa(i)
+		log.Info().Msg("GetUsersOfProjectsUsers: GET page " + pageNumberStr + " ...")
+		paramURL.Set(cst.ReqPage, pageNumberStr)
+		projectsUserURL.RawQuery = paramURL.Encode()
+
+		rsp := api42.executeGetURLReq(projectsUserURL)
+		if rsp == nil {
+			return nil
+		}
+		defer rsp.Body.Close()
+
+		rspJSON := make([]API42ProjectUser, 0)
+		decoder := json.NewDecoder(rsp.Body)
+		if err = decoder.Decode(&rspJSON); err != nil {
+			log.Fatal().Err(err).Msg("GetUsersOfProjectsUsers: Failed to decode JSON values of a project user")
+		}
+		if (len(rspJSON) == 0) {
+			break
+		}
+		projectsUsers = append(projectsUsers, rspJSON...)
+	}
+
+	if (len(projectsUsers) == 0) {
+		log.Error().Msg("GetUsersOfProjectsUsers: no project user found")
+		return nil
+	}
+	log.Info().Msg("GetUsersOfProjectsUsers: Get all projects users")
+	for index, projectUser := range projectsUsers {
+		fmt.Print(index)
+		fmt.Println(": "+ projectUser.User.Login)
+	}
+	return &projectsUsers
 }
 
 // New create new API42 obj
