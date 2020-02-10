@@ -219,12 +219,15 @@ func sortProjectsPerType(api42Projects *[]reqAPI42.API42Project) *projectsPerTyp
 	return &allProjects
 }
 
-func locationsToUsersMap(locations *[]reqAPI42.API42Location) *map[uint]*reqAPI42.API42Location {
+func locationsToUsersIDMap(locations *[]reqAPI42.API42Location, me *reqAPI42.API42User) *map[uint]*reqAPI42.API42Location {
 	if locations == nil {
 		return nil
 	}
 	usersLogged := make(map[uint]*reqAPI42.API42Location)
 	for index := range *locations {
+		if (*locations)[index].User.ID == me.ID {
+			continue
+		}
 		usersLogged[(*locations)[index].User.ID] = &(*locations)[index]
 	}
 	return &usersLogged
@@ -263,7 +266,7 @@ func main() {
 
 	api42 := reqAPI42.New(flags)
 	allProjects := sortProjectsPerType(api42.GetProjects())
-	usersLogged := locationsToUsersMap(api42.GetLocations())
+	usersLogged := locationsToUsersIDMap(api42.GetLocations(), api42.GetMe())
 
 	var indexAction int
 	var err error
@@ -293,7 +296,7 @@ func main() {
 		case cst.MenuActionFind:
 			findExaminer(api42, allProjects, usersLogged)
 		case cst.MenuActionUpdateLocations:
-			usersLogged = locationsToUsersMap(api42.GetLocations())
+			usersLogged = locationsToUsersIDMap(api42.GetLocations(), api42.GetMe())
 		case cst.MenuActionUpdateProjects:
 			allProjects = sortProjectsPerType(api42.GetProjects())
 		case cst.MenuActionUpdateCursus:

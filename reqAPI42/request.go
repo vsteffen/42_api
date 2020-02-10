@@ -302,6 +302,28 @@ func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) *[]API42ProjectUser 
 	return &projectsUsers
 }
 
+// GetMe is used to execute a GET request for "me" user from 42's API (https://api.intra.42.fr/apidoc/2.0/users/me.html)
+func (api42 *API42) GetMe() *API42User {
+	var err error
+
+	meURL, paramURL := api42.prepareGetParamURLReq(cst.MeURL)
+	meURL.RawQuery = paramURL.Encode()
+
+	rsp := api42.executeGetURLReq(meURL)
+	if rsp == nil {
+		return nil
+	}
+	defer rsp.Body.Close()
+
+	var rspJSON API42User
+	decoder := json.NewDecoder(rsp.Body)
+	if err = decoder.Decode(&rspJSON); err != nil {
+		log.Fatal().Err(err).Msg("GetMe: Failed to decode JSON values of me")
+	}
+	log.Info().Msg("GetMe: login -> " + rspJSON.Login)
+	return &rspJSON
+}
+
 // New create a new API42 object
 func New(flags []interface{}) *API42 {
 	tmp := API42{}

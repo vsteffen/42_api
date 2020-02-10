@@ -61,6 +61,8 @@ const (
 	ProfileURL     = "https://profile.intra.42.fr"
 	ProfileUserURL = ProfileURL + "/users/"
 
+	MeURL = BaseURL + "/v2/me"
+
 	MaxUint = ^uint(0)
 	MaxInt  = int(MaxUint >> 1)
 )
