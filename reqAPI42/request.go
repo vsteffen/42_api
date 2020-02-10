@@ -1,4 +1,4 @@
-package reqApi42
+package reqAPI42
 
 import (
 	"encoding/json"
@@ -13,97 +13,6 @@ import (
 	"time"
 	"runtime"
 )
-
-// API42 type which use to interact with 42's API
-type API42 struct {
-	keys		apiKeys
-	rlLastReqSec	time.Time
-	rlNbReqSec	uint
-	campus		uint
-	cursus		uint
-	locations	[]API42Location
-	projects	[]API42Project
-}
-
-type JSONProjectParent struct {
-	API42ProjectParent
-}
-
-type JSONTime struct {
-	time.Time
-}
-
-type API42User struct {
-	ID	uint	`json:"id"`
-	Login	string	`json:"login"`
-}
-
-type API42Cursus struct {
-	ID	uint	`json:"id"`
-	Name	string	`json:"name"`
-}
-
-type API42Campus struct {
-	ID	uint	`json:"id"`
-	Name	string	`json:"name"`
-}
-
-type API42Location struct {
-	// ID	uint		`json:"id"`
-	// EndAt	JSONTime	`json:"end_at"`
-	Host	string		`json:"host"`
-	User	API42User 	`json:"user"`
-}
-
-type API42Project struct {
-	ID	uint			`json:"id"`
-	Name	string			`json:"name"`
-	Parent	*API42ProjectParent	`json:"parent"`
-	Campus	[]API42Campus		`json:"campus"`
-}
-
-type API42ProjectUser struct {
-	ID	uint		`json:"id"`
-	User	API42User	`json:"user"`
-}
-
-type API42ProjectParent struct {
-	ID	uint	`json:"id"`
-	Name	string	`json:"name"`
-	// Slug	string	`json:"slug"`
-}
-
-func (jsonVal *JSONTime) UnmarshalJSON(b []byte) error {
-	str := string(b)
-	if str == "null" {
-		*jsonVal = JSONTime{time.Time{}}
-		return nil
-	}
-	timeFormated := strings.Trim(str, "\"")
-	timeVal, err := time.Parse(time.RFC3339, timeFormated)
-	if err != nil {
-		return err
-	}
-	*jsonVal = JSONTime{timeVal}
-	return nil
-}
-
-func (jsonVal *JSONProjectParent) UnmarshalJSON(b []byte) error {
-	str := string(b)
-
-	if str == "null" {
-		jsonVal = nil
-		return nil
-	}
-
-	var projectParent API42ProjectParent
-	err := json.Unmarshal(b, &projectParent)
-	if err != nil {
-		return err
-	}
-	jsonVal = &JSONProjectParent{projectParent}
-	return nil
-}
 
 func (api42 *API42) debugPrintRsp(rsp *http.Response) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -157,7 +66,7 @@ func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
 	return rsp
 }
 
-func (api42 *API42) UpdateCampus(campusName string) (bool) {
+func (api42 *API42) GetCampus(campusName string) (*API42Campus) {
 	var err error
 
 	campusURL, paramURL := api42.prepareGetParamURLReq(cst.CampusURL)
@@ -166,66 +75,82 @@ func (api42 *API42) UpdateCampus(campusName string) (bool) {
 
 	rsp := api42.executeGetURLReq(campusURL)
 	if rsp == nil {
-		return false
+		return nil
 	}
 	defer rsp.Body.Close()
 
 	rspJSON := make([]API42Campus, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
-		log.Fatal().Err(err).Msg("UpdateCampus: Failed to decode JSON values of campus")
+		log.Fatal().Err(err).Msg("GetCampus: Failed to decode JSON values of campus")
 	}
 	if (len(rspJSON) == 0) {
-		log.Error().Msg("UpdateCampus: no campus found")
-		return false
+		log.Error().Msg("GetCampus: no campus found")
+		return nil
 	}
-	log.Info().Msg("Found campus '" + cst.CampusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
-	api42.campus = rspJSON[0].ID
-	return true
+	log.Info().Msg("Found campus '" + campusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
+	return &rspJSON[0]
 }
 
-func (api42 *API42) UpdateLocations() (bool) {
+func (api42 *API42) UpdateCampus(campusName string) (*API42Campus) {
+	campus := api42.GetCampus(campusName)
+	if campus == nil {
+		return nil
+	}
+	api42.campus = campus
+	return campus
+}
+
+func (api42 *API42) GetLocations() (*[]API42Location) {
 	var err error
 
-	log.Info().Msg("Updating locations ...")
-	api42.locations = nil
-	locationsParsedURL := fmt.Sprintf(cst.LocationsURL, api42.campus)
+	locations := make([]API42Location, 0)
+	locationsParsedURL := fmt.Sprintf(cst.LocationsURL, api42.campus.ID)
 	locationsURL, paramURL := api42.prepareGetParamURLReq(locationsParsedURL)
 	paramURL.Add(cst.ReqFilter + "[active]", "true")
 	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
 
 	for i := 1; ; i++ {
 		pageNumberStr := strconv.Itoa(i)
-		log.Info().Msg("UpdateLocations: GET page " + pageNumberStr + " ...")
+		log.Info().Msg("GetLocations: GET page " + pageNumberStr + " ...")
 		paramURL.Set(cst.ReqPage, pageNumberStr)
 		locationsURL.RawQuery = paramURL.Encode()
 
 		rsp := api42.executeGetURLReq(locationsURL)
 		if rsp == nil {
-			return false
+			return nil
 		}
 		defer rsp.Body.Close()
 
 		rspJSON := make([]API42Location, 0)
 		decoder := json.NewDecoder(rsp.Body)
 		if err = decoder.Decode(&rspJSON); err != nil {
-			log.Fatal().Err(err).Msg("UpdateLocations: Failed to decode JSON values of location")
+			log.Fatal().Err(err).Msg("GetLocations: Failed to decode JSON values of location")
 		}
 		if (len(rspJSON) == 0) {
 			break
 		}
-		api42.locations = append(api42.locations, rspJSON...)
+		locations = append(locations, rspJSON...)
 	}
 
-	if (len(api42.locations) == 0) {
-		log.Warn().Msg("UpdateLocations: no location found")
-		return false
+	if (len(locations) == 0) {
+		log.Warn().Msg("GetLocations: no location found")
+		return nil
 	}
-	log.Info().Msg("UpdateLocations: locations updated")
-	return true
+	log.Info().Msg("GetLocations: locations updated")
+	return &locations
 }
 
-func (api42 *API42) UpdateCursus(cursusName string) (bool) {
+// func (api42 *API42) UpdateLocations() (*[]API42Location) {
+// 	locations := api42.GetLocations()
+// 	if locations == nil {
+// 		return nil
+// 	}
+// 	api42.locations = locations
+// 	return locations
+// }
+
+func (api42 *API42) GetCursus(cursusName string) (*API42Cursus) {
 	var err error
 
 	cursusURL, paramURL := api42.prepareGetParamURLReq(cst.CursusURL)
@@ -234,31 +159,38 @@ func (api42 *API42) UpdateCursus(cursusName string) (bool) {
 
 	rsp := api42.executeGetURLReq(cursusURL)
 	if rsp == nil {
-		return false
+		return nil
 	}
 	defer rsp.Body.Close()
 
 	rspJSON := make([]API42Cursus, 0)
 	decoder := json.NewDecoder(rsp.Body)
 	if err = decoder.Decode(&rspJSON); err != nil {
-		log.Fatal().Err(err).Msg("UpdateCursus: Failed to decode JSON values of cursus")
+		log.Fatal().Err(err).Msg("GetCursus: Failed to decode JSON values of cursus")
 	}
 	if (len(rspJSON) == 0) {
-		log.Error().Msg("UpdateCursus: no cursus found")
-		return false
+		log.Error().Msg("GetCursus: no cursus found")
+		return nil
 	}
 	log.Info().Msg("Found cursus '" + cursusName + "' ID -> " + strconv.FormatUint(uint64(rspJSON[0].ID), 10))
-	api42.cursus = rspJSON[0].ID
-	return true
+	return &rspJSON[0]
 }
 
-func (api42 *API42) UpdateProjects() (bool) {
+func (api42 *API42) UpdateCursus(cursusName string) (*API42Cursus) {
+	cursus := api42.GetCursus(cursusName)
+	if cursus == nil {
+		return nil
+	}
+	api42.cursus = cursus
+	return cursus
+}
+
+func (api42 *API42) GetProjects() (*[]API42Project) {
 	var err error
 
-	log.Info().Msg("Updating projects ...")
-	api42.projects = nil
+	projects := make([]API42Project, 0)
 	projectsURL, paramURL := api42.prepareGetParamURLReq(cst.ProjectsURL)
-	paramURL.Add("cursus_id", strconv.FormatUint(uint64(api42.cursus), 10))
+	paramURL.Add("cursus_id", strconv.FormatUint(uint64(api42.cursus.ID), 10))
 	paramURL.Add(cst.ReqFilter + "[has_git]", "true")
 	paramURL.Add(cst.ReqFilter + "[has_mark]", "true")
 	paramURL.Add(cst.ReqFilter + "[visible]", "true")
@@ -267,20 +199,20 @@ func (api42 *API42) UpdateProjects() (bool) {
 
 	for i := 1; ; i++ {
 		pageNumberStr := strconv.Itoa(i)
-		log.Info().Msg("UpdateProjects: GET page " + pageNumberStr + " ...")
+		log.Info().Msg("GetProjects: GET page " + pageNumberStr + " ...")
 		paramURL.Set(cst.ReqPage, pageNumberStr)
 		projectsURL.RawQuery = paramURL.Encode()
 
 		rsp := api42.executeGetURLReq(projectsURL)
 		if rsp == nil {
-			return false
+			return nil
 		}
 		defer rsp.Body.Close()
 
 		rspJSON := make([]API42Project, 0)
 		decoder := json.NewDecoder(rsp.Body)
 		if err = decoder.Decode(&rspJSON); err != nil {
-			log.Fatal().Err(err).Msg("UpdateProjects: Failed to decode JSON values of a project")
+			log.Fatal().Err(err).Msg("GetProjects: Failed to decode JSON values of a project")
 		}
 		if (len(rspJSON) == 0) {
 			break
@@ -288,7 +220,7 @@ func (api42 *API42) UpdateProjects() (bool) {
 		i := 0
 		for _, project := range rspJSON {
 			for _, campus := range project.Campus {
-				if campus.ID == api42.campus {
+				if campus.ID == api42.campus.ID {
 					project.Campus = nil
 					rspJSON[i] = project
 					i++
@@ -298,20 +230,25 @@ func (api42 *API42) UpdateProjects() (bool) {
 		}
 		rspJSON = rspJSON[:i]
 		// fmt.Println(rspJSON)
-		api42.projects = append(api42.projects, rspJSON...)
+		projects = append(projects, rspJSON...)
 	}
 
-	if (len(api42.projects) == 0) {
-		log.Fatal().Msg("UpdateProjects: no project found")
-		return false
+	if (len(projects) == 0) {
+		log.Fatal().Msg("GetProjects: no project found")
+		return nil
 	}
-	log.Info().Msg("UpdateProjects: projects updated")
-	return true
+	log.Info().Msg("GetProjects: projects updated")
+	return &projects
 }
 
-func (api42 *API42) GetProjects() (*[]API42Project) {
-	return &api42.projects
-}
+// func (api42 *API42) UpdateProjects() (*[]API42Project) {
+// 	projects := api42.GetProjects()
+// 	if projects == nil {
+// 		return nil
+// 	}
+// 	api42.projects = projects
+// 	return projects
+// }
 
 func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) (*[]API42ProjectUser) {
 	var err error
@@ -320,8 +257,8 @@ func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) (*[]API42ProjectUser
 	log.Info().Msg("GetUsersOfProjectsUsers: searching with project ID = " + projectIDStr + " ...")
 	projectsUserURL, paramURL := api42.prepareGetParamURLReq(cst.ProjectsUsersURL)
 	paramURL.Add(cst.ReqFilter + "[project_id]", projectIDStr)
-	paramURL.Add(cst.ReqFilter + "[cursus]", strconv.FormatUint(uint64(api42.cursus), 10))
-	paramURL.Add(cst.ReqFilter + "[campus]", strconv.FormatUint(uint64(api42.campus), 10))
+	paramURL.Add(cst.ReqFilter + "[cursus]", strconv.FormatUint(uint64(api42.cursus.ID), 10))
+	paramURL.Add(cst.ReqFilter + "[campus]", strconv.FormatUint(uint64(api42.campus.ID), 10))
 	paramURL.Add(cst.ReqFilter + "[marked]", "true")
 	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
 	projectsUserURL.RawQuery = paramURL.Encode()
@@ -373,15 +310,15 @@ func New(flags []interface{}) *API42 {
 	}
 
 	if *flags[1].(*bool) {
-		if !tmp.UpdateCampus(cst.CampusName) || !tmp.UpdateCursus(cst.CursusName) {
+		if tmp.UpdateCampus(cst.DefaultCampusName) == nil || tmp.UpdateCursus(cst.DefaultCursusName) == nil {
 			log.Fatal().Msg("API42.New: failed to initialize API42")
 		}
 	} else {
-		log.Info().Msg("API42.New: Use default values")
-		tmp.campus = cst.DefaultCampus
-		tmp.cursus = cst.DefaultCursus
+		log.Info().Msg("API42.New: Use default values for campus and cursus")
+		tmp.campus = &API42Campus{cst.DefaultCampusID, cst.DefaultCampusName}
+		tmp.cursus = &API42Cursus{cst.DefaultCursusID, cst.DefaultCursusName}
 	}
-	tmp.UpdateProjects()
+	// tmp.UpdateProjects()
 	// tmp.UpdateLocations()
 	return &tmp
 }

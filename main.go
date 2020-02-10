@@ -4,7 +4,7 @@ import (
 	"flag"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/vsteffen/42_api/reqApi42"
+	"github.com/vsteffen/42_api/reqAPI42"
 	"github.com/vsteffen/42_api/tools"
 	cst "github.com/vsteffen/42_api/tools/constants"
 	"os"
@@ -16,13 +16,13 @@ import (
 )
 
 type projectParent struct {
-	this	*reqApi42.API42ProjectParent
-	childs	[]*reqApi42.API42Project
+	this	*reqAPI42.API42ProjectParent
+	childs	[]*reqAPI42.API42Project
 }
 
 type projectsPerType struct {
 	parents		map[uint]*projectParent
-	directs		[]*reqApi42.API42Project
+	directs		[]*reqAPI42.API42Project
 }
 
 func askStringClean (askStr string) (string) {
@@ -38,8 +38,8 @@ func askStringClean (askStr string) (string) {
 	return str
 }
 
-func findProjectName(searchStr string, projects *[]*reqApi42.API42Project) ([]*reqApi42.API42Project, []string, bool) {
-	matchProjects := make([]*reqApi42.API42Project, cst.FindNameMaxResults)
+func findProjectName(searchStr string, projects *[]*reqAPI42.API42Project) ([]*reqAPI42.API42Project, []string, bool) {
+	matchProjects := make([]*reqAPI42.API42Project, cst.FindNameMaxResults)
 	matchCosts := make([]int, cst.FindNameMaxResults)
 	highestCost := cst.MaxInt
 
@@ -134,7 +134,15 @@ func getIndexNameChoice(items []string) (int) {
 	return indexProjectFind
 }
 
-func findExaminer(api42 *reqApi42.API42, allProjects *projectsPerType) {
+func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogged *map[uint]*reqAPI42.API42User) {
+	if allProjects == nil {
+		log.Error().Msg("Prompt: list of projects empty")
+		return
+	}
+	if usersLogged == nil {
+		log.Error().Msg("Prompt: map of users logged empty")
+		return
+	}
 	prompt := promptui.Select{
 		Label:	"Does your project have a parent",
 		Items:	[]string{"Yes", "No"},
@@ -145,7 +153,7 @@ func findExaminer(api42 *reqApi42.API42, allProjects *projectsPerType) {
 		log.Fatal().Err(err).Msg("PromptUI: failed")
 	}
 
-	var realProjectsToSearch *[]*reqApi42.API42Project
+	var realProjectsToSearch *[]*reqAPI42.API42Project
 	if indexAction == 0 {
 		parentProjectName := askStringClean("Please, enter the parent project name: ")
 		parentFind, parentsFindNames, fullMatch := findProjectParentName(parentProjectName, &allProjects.parents)
@@ -163,7 +171,7 @@ func findExaminer(api42 *reqApi42.API42, allProjects *projectsPerType) {
 	}
 	projectName := askStringClean("Please, enter the project name: ")
 	projectsFind, projectsFindNames, fullMatch := findProjectName(projectName, realProjectsToSearch)
-	var projectSelected *reqApi42.API42Project
+	var projectSelected *reqAPI42.API42Project
 	if fullMatch {
 		projectSelected = projectsFind[0]
 	} else {
@@ -173,27 +181,40 @@ func findExaminer(api42 *reqApi42.API42, allProjects *projectsPerType) {
 		}
 		projectSelected = projectsFind[indexChoose]
 	}
-	fmt.Println(projectSelected)
 	api42.GetUsersOfProjectsUsers((*projectSelected).ID)
 }
 
-func sortProjectsPerType(api42Projects *[]reqApi42.API42Project) (*projectsPerType) {
+func sortProjectsPerType(api42Projects *[]reqAPI42.API42Project) (*projectsPerType) {
+	if api42Projects == nil {
+		return nil
+	}
 	var allProjects projectsPerType
 	allProjects.parents = make(map[uint]*projectParent)
-	allProjects.directs = make([]*reqApi42.API42Project, 0)
+	allProjects.directs = make([]*reqAPI42.API42Project, 0)
 	for index, project := range *api42Projects {
 		if project.Parent == nil {
 			allProjects.directs = append(allProjects.directs, &(*api42Projects)[index])
 		} else {
 			projectDeref := (*api42Projects)[index]
 			if parentMapValue, ok := allProjects.parents[projectDeref.Parent.ID]; !ok {
-				allProjects.parents[projectDeref.Parent.ID] = &projectParent{projectDeref.Parent, []*reqApi42.API42Project{&(*api42Projects)[index]}}
+				allProjects.parents[projectDeref.Parent.ID] = &projectParent{projectDeref.Parent, []*reqAPI42.API42Project{&(*api42Projects)[index]}}
 			} else {
 				parentMapValue.childs = append(parentMapValue.childs, &(*api42Projects)[index])
 			}
 		}
 	}
 	return &allProjects
+}
+
+func locationsToUsersMap(locations *[]reqAPI42.API42Location) (*map[uint]*reqAPI42.API42User) {
+	if locations == nil {
+		return nil
+	}
+	usersLogged := make(map[uint]*reqAPI42.API42User)
+	for index, _ := range *locations {
+		usersLogged[(*locations)[index].User.ID] = &(*locations)[index].User
+	}
+	return &usersLogged
 }
 
 func debugPrintProjectsPerType(allProjects *projectsPerType) {
@@ -227,10 +248,9 @@ func main() {
 
 	fmt.Print(cst.MenuHello)
 
-	api42 := reqApi42.New(flags)
+	api42 := reqAPI42.New(flags)
 	allProjects := sortProjectsPerType(api42.GetProjects())
-
-	api42.GetUsersOfProjectsUsers(1442)
+	usersLogged := locationsToUsersMap(api42.GetLocations())
 
 	var indexAction int
 	var err error
@@ -258,15 +278,10 @@ func main() {
 
 		switch menuActions[indexAction] {
 		case cst.MenuActionFind:
-			if len(allProjects.directs) == 0 || len(allProjects.parents) == 0 {
-				log.Error().Msg("Prompt: list of projects empty")
-			} else {
-				findExaminer(api42, allProjects)
-			}
+			findExaminer(api42, allProjects, usersLogged)
 		case cst.MenuActionUpdateLocations:
-			api42.UpdateLocations()
+			usersLogged = locationsToUsersMap(api42.GetLocations())
 		case cst.MenuActionUpdateProjects:
-			api42.UpdateProjects()
 			allProjects = sortProjectsPerType(api42.GetProjects())
 		case cst.MenuActionUpdateCursus:
 			cursusName := askStringClean("Please, enter the cursus name: ")

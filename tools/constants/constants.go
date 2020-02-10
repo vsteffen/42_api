@@ -5,8 +5,10 @@ const (
 	UID		= "698c6cc85d07ed45f147486e6630ae9dedad619943999ce345fb958c4867bec9"
 	BaseURL		= "https://api.intra.42.fr"
 
-	DefaultCampus	= 1
-	DefaultCursus	= 21
+	DefaultCampusID		= 1
+	DefaultCampusName	= "Paris"
+	DefaultCursusID		= 21
+	DefaultCursusName	= "42cursus"
 
 	SizeApiKeys = 64
 
@@ -38,18 +40,11 @@ const (
 	ReqPageSize	= "page[size]"
 	ReqPageSizeMax	= "100"
 
-	CampusName = "Paris"
-
-	LocationsURL = BaseURL + "/v2/campus/%d/locations"
-
-	CampusURL = BaseURL + "/v2/campus"
-
-	CursusURL	= BaseURL + "/v2/cursus"
-	CursusName	= "42cursus"
-
-	ProjectsURL = BaseURL + "/v2/me/projects"
-
-	ProjectsUsersURL = BaseURL + "/v2/projects_users"
+	LocationsURL		= BaseURL + "/v2/campus/%d/locations"
+	CampusURL		= BaseURL + "/v2/campus"
+	CursusURL		= BaseURL + "/v2/cursus"
+	ProjectsURL		= BaseURL + "/v2/me/projects"
+	ProjectsUsersURL	= BaseURL + "/v2/projects_users"
 
 	MenuHello	= "Find_Examiner v1.0\n"
 

@@ -1,4 +1,4 @@
-package reqApi42
+package reqAPI42
 
 import (
 	"bytes"
@@ -153,7 +153,7 @@ func (api42 *API42) NewToken() {
 func (api42 *API42) initKeys() {
 	api42.keys.uid = cst.UID
 	var err error
-	log.Info().Msg("Initialize keys of reqApi42")
+	log.Info().Msg("Initialize keys of reqAPI42")
 	if api42.keys.secret, err = api42.readKeys(cst.PathSecret); err != nil {
 		log.Fatal().Err(err).Msg("Failed to read OAuth secret")
 	}
