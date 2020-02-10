@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	WagnerFischerInsertionCost	= 1
-	WagnerFischerDeletionCost	= 1
-	WagnerFischerSubstitutionCost	= 1
+	WagnerFischerInsertionCost    = 1
+	WagnerFischerDeletionCost     = 1
+	WagnerFischerSubstitutionCost = 1
 )
 
 // ReadAndHideData read on stdin and hide user input
@@ -31,7 +31,7 @@ func StringToRuneSlice(s string) []rune {
 }
 
 // MinInt return minimumInt
-func MinInt(firstArg int, args ...int) (int) {
+func MinInt(firstArg int, args ...int) int {
 	min := firstArg
 	for _, nb := range args {
 		if min > nb {
@@ -64,18 +64,18 @@ func EditDistance(s, t string) int {
 	for j := 1; j < n; j++ {
 		for i := 1; i < m; i++ {
 			var substitutionCost int
-			if ss[i - 1] == tt[j - 1] {
+			if ss[i-1] == tt[j-1] {
 				substitutionCost = 0
 			} else {
 				substitutionCost = WagnerFischerSubstitutionCost
 			}
 			d[i][j] = MinInt(
-				d[i - 1][j] + WagnerFischerInsertionCost,
-				d[i][j - 1] + WagnerFischerDeletionCost,
-				d[i - 1][j - 1] + substitutionCost,
+				d[i-1][j]+WagnerFischerInsertionCost,
+				d[i][j-1]+WagnerFischerDeletionCost,
+				d[i-1][j-1]+substitutionCost,
 			)
 		}
 	}
 
-	return d[m - 1][n - 1]
+	return d[m-1][n-1]
 }

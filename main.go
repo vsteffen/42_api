@@ -1,31 +1,31 @@
 package main
 
 import (
+	"bufio"
 	"flag"
+	"fmt"
+	"github.com/manifoldco/promptui"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/vsteffen/42_api/reqAPI42"
 	"github.com/vsteffen/42_api/tools"
 	cst "github.com/vsteffen/42_api/tools/constants"
 	"os"
-	"time"
-	"fmt"
-	"bufio"
 	"regexp"
-	"github.com/manifoldco/promptui"
+	"time"
 )
 
 type projectParent struct {
-	this	*reqAPI42.API42ProjectParent
-	childs	[]*reqAPI42.API42Project
+	this   *reqAPI42.API42ProjectParent
+	childs []*reqAPI42.API42Project
 }
 
 type projectsPerType struct {
-	parents		map[uint]*projectParent
-	directs		[]*reqAPI42.API42Project
+	parents map[uint]*projectParent
+	directs []*reqAPI42.API42Project
 }
 
-func askStringClean (askStr string) (string) {
+func askStringClean(askStr string) string {
 	fmt.Print(askStr)
 	scannerStdin := bufio.NewScanner(os.Stdin)
 	scannerStdin.Scan()
@@ -43,7 +43,7 @@ func findProjectName(searchStr string, projects *[]*reqAPI42.API42Project) ([]*r
 	matchCosts := make([]int, cst.FindNameMaxResults)
 	highestCost := cst.MaxInt
 
-	for indexInit, _ := range matchCosts {
+	for indexInit := range matchCosts {
 		matchCosts[indexInit] = cst.MaxInt
 	}
 
@@ -57,11 +57,11 @@ func findProjectName(searchStr string, projects *[]*reqAPI42.API42Project) ([]*r
 		if currentCost < highestCost {
 			for indexMatchCost, cost := range matchCosts {
 				if currentCost < cost {
-					copy(matchCosts[indexMatchCost + 1:], matchCosts[indexMatchCost:])
-					copy(matchProjects[indexMatchCost + 1:], matchProjects[indexMatchCost:])
+					copy(matchCosts[indexMatchCost+1:], matchCosts[indexMatchCost:])
+					copy(matchProjects[indexMatchCost+1:], matchProjects[indexMatchCost:])
 					matchCosts[indexMatchCost] = currentCost
 					matchProjects[indexMatchCost] = (*projects)[indexProject]
-					if indexMatchCost + 1 == cst.FindNameMaxResults {
+					if indexMatchCost+1 == cst.FindNameMaxResults {
 						highestCost = currentCost
 					}
 					break
@@ -84,7 +84,7 @@ func findProjectParentName(searchStr string, parents *map[uint]*projectParent) (
 	matchCosts := make([]int, cst.FindNameMaxResults)
 	highestCost := cst.MaxInt
 
-	for indexInit, _ := range matchCosts {
+	for indexInit := range matchCosts {
 		matchCosts[indexInit] = cst.MaxInt
 	}
 
@@ -98,11 +98,11 @@ func findProjectParentName(searchStr string, parents *map[uint]*projectParent) (
 		if currentCost < highestCost {
 			for indexMatchCost, cost := range matchCosts {
 				if currentCost < cost {
-					copy(matchCosts[indexMatchCost + 1:], matchCosts[indexMatchCost:])
-					copy(matchParent[indexMatchCost + 1:], matchParent[indexMatchCost:])
+					copy(matchCosts[indexMatchCost+1:], matchCosts[indexMatchCost:])
+					copy(matchParent[indexMatchCost+1:], matchParent[indexMatchCost:])
 					matchCosts[indexMatchCost] = currentCost
 					matchParent[indexMatchCost] = (*parents)[indexProject]
-					if indexMatchCost + 1 == cst.FindNameMaxResults {
+					if indexMatchCost+1 == cst.FindNameMaxResults {
 						highestCost = currentCost
 					}
 					break
@@ -117,11 +117,11 @@ func findProjectParentName(searchStr string, parents *map[uint]*projectParent) (
 	return matchParent, matchStrings, false
 }
 
-func getIndexNameChoice(items []string) (int) {
+func getIndexNameChoice(items []string) int {
 	items = append(items, "Cancel")
 	prompt := promptui.Select{
-		Label:	"Found these projects name. Choose or cancel",
-		Items:	items,
+		Label:    "Found these projects name. Choose or cancel",
+		Items:    items,
 		HideHelp: true,
 	}
 	indexProjectFind, _, err := prompt.Run()
@@ -144,8 +144,8 @@ func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogg
 		return
 	}
 	prompt := promptui.Select{
-		Label:	"Does your project have a parent",
-		Items:	[]string{"Yes", "No"},
+		Label:    "Does your project have a parent",
+		Items:    []string{"Yes", "No"},
 		HideHelp: true,
 	}
 	indexAction, _, err := prompt.Run()
@@ -184,7 +184,7 @@ func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogg
 	api42.GetUsersOfProjectsUsers((*projectSelected).ID)
 }
 
-func sortProjectsPerType(api42Projects *[]reqAPI42.API42Project) (*projectsPerType) {
+func sortProjectsPerType(api42Projects *[]reqAPI42.API42Project) *projectsPerType {
 	if api42Projects == nil {
 		return nil
 	}
@@ -206,12 +206,12 @@ func sortProjectsPerType(api42Projects *[]reqAPI42.API42Project) (*projectsPerTy
 	return &allProjects
 }
 
-func locationsToUsersMap(locations *[]reqAPI42.API42Location) (*map[uint]*reqAPI42.API42User) {
+func locationsToUsersMap(locations *[]reqAPI42.API42Location) *map[uint]*reqAPI42.API42User {
 	if locations == nil {
 		return nil
 	}
 	usersLogged := make(map[uint]*reqAPI42.API42User)
-	for index, _ := range *locations {
+	for index := range *locations {
 		usersLogged[(*locations)[index].User.ID] = &(*locations)[index].User
 	}
 	return &usersLogged
@@ -265,8 +265,8 @@ func main() {
 	}
 	for {
 		prompt := promptui.Select{
-			Label:	"Choose an action",
-			Items:	menuActions,
+			Label:    "Choose an action",
+			Items:    menuActions,
 			HideHelp: true,
 		}
 
@@ -300,7 +300,6 @@ func main() {
 
 	}
 }
-
 
 /*
 --> Update locations

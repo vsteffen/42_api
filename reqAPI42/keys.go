@@ -54,7 +54,7 @@ func (api42 *API42) readKeys(pathFile string) (string, error) {
 			log.Fatal().Err(err).Msg("")
 		}
 		fileString := strings.TrimSpace(string(fileBytes))
-		if len(fileString) != cst.SizeApiKeys {
+		if len(fileString) != cst.SizeAPIKeys {
 			log.Fatal().Msg("wrong size for " + pathFile)
 		}
 		log.Info().Msg("Found hash " + pathFile)

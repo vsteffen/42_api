@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
-	"runtime"
 )
 
 func (api42 *API42) debugPrintRsp(rsp *http.Response) {
@@ -32,7 +32,7 @@ func (api42 *API42) prepareGetParamURLReq(rawquery string) (*url.URL, *url.Value
 	return tmpURL, &tmpParamURL
 }
 
-func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
+func (api42 *API42) executeGetURLReq(getURL *url.URL) *http.Response {
 	now := time.Now()
 	waitTime := api42.rlLastReqSec.Add(time.Millisecond * cst.RLWaitTimeMsPerSecond)
 	nowBeforeWait := now.Before(waitTime)
@@ -42,7 +42,7 @@ func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
 		api42.rlNbReqSec = 1
 	} else {
 		api42.rlLastReqSec = now
-		api42.rlNbReqSec += 1
+		api42.rlNbReqSec++
 		if nowBeforeWait == false {
 			api42.rlNbReqSec = 1
 		}
@@ -50,7 +50,7 @@ func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
 	rsp, err := http.Get(getURL.String())
 	pc, _, _, _ := runtime.Caller(1)
 	callerFuncName := runtime.FuncForPC(pc).Name()
-	callerFuncNameShort := callerFuncName[strings.LastIndex(callerFuncName, ".") + 1 : ]
+	callerFuncNameShort := callerFuncName[strings.LastIndex(callerFuncName, ".")+1:]
 	if err != nil {
 		log.Fatal().Err(err).Msg(callerFuncNameShort + ": Failed to GET " + getURL.String())
 	}
@@ -66,11 +66,12 @@ func (api42 *API42) executeGetURLReq(getURL *url.URL) (*http.Response) {
 	return rsp
 }
 
-func (api42 *API42) GetCampus(campusName string) (*API42Campus) {
+// GetCampus is used to execute a GET request for campus from 42's API (https://api.intra.42.fr/apidoc/2.0/campus.html)
+func (api42 *API42) GetCampus(campusName string) *API42Campus {
 	var err error
 
 	campusURL, paramURL := api42.prepareGetParamURLReq(cst.CampusURL)
-	paramURL.Add(cst.ReqFilter + "[name]", campusName)
+	paramURL.Add(cst.ReqFilter+"[name]", campusName)
 	campusURL.RawQuery = paramURL.Encode()
 
 	rsp := api42.executeGetURLReq(campusURL)
@@ -84,7 +85,7 @@ func (api42 *API42) GetCampus(campusName string) (*API42Campus) {
 	if err = decoder.Decode(&rspJSON); err != nil {
 		log.Fatal().Err(err).Msg("GetCampus: Failed to decode JSON values of campus")
 	}
-	if (len(rspJSON) == 0) {
+	if len(rspJSON) == 0 {
 		log.Error().Msg("GetCampus: no campus found")
 		return nil
 	}
@@ -92,7 +93,8 @@ func (api42 *API42) GetCampus(campusName string) (*API42Campus) {
 	return &rspJSON[0]
 }
 
-func (api42 *API42) UpdateCampus(campusName string) (*API42Campus) {
+// UpdateCampus is used to change campus values in API42 object
+func (api42 *API42) UpdateCampus(campusName string) *API42Campus {
 	campus := api42.GetCampus(campusName)
 	if campus == nil {
 		return nil
@@ -101,13 +103,14 @@ func (api42 *API42) UpdateCampus(campusName string) (*API42Campus) {
 	return campus
 }
 
-func (api42 *API42) GetLocations() (*[]API42Location) {
+// GetLocations is used to execute a GET request for locations from 42's API (https://api.intra.42.fr/apidoc/2.0/locations.html)
+func (api42 *API42) GetLocations() *[]API42Location {
 	var err error
 
 	locations := make([]API42Location, 0)
 	locationsParsedURL := fmt.Sprintf(cst.LocationsURL, api42.campus.ID)
 	locationsURL, paramURL := api42.prepareGetParamURLReq(locationsParsedURL)
-	paramURL.Add(cst.ReqFilter + "[active]", "true")
+	paramURL.Add(cst.ReqFilter+"[active]", "true")
 	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
 
 	for i := 1; ; i++ {
@@ -127,13 +130,13 @@ func (api42 *API42) GetLocations() (*[]API42Location) {
 		if err = decoder.Decode(&rspJSON); err != nil {
 			log.Fatal().Err(err).Msg("GetLocations: Failed to decode JSON values of location")
 		}
-		if (len(rspJSON) == 0) {
+		if len(rspJSON) == 0 {
 			break
 		}
 		locations = append(locations, rspJSON...)
 	}
 
-	if (len(locations) == 0) {
+	if len(locations) == 0 {
 		log.Warn().Msg("GetLocations: no location found")
 		return nil
 	}
@@ -150,11 +153,12 @@ func (api42 *API42) GetLocations() (*[]API42Location) {
 // 	return locations
 // }
 
-func (api42 *API42) GetCursus(cursusName string) (*API42Cursus) {
+// GetCursus is used to execute a GET request for cursus from 42's API (https://api.intra.42.fr/apidoc/2.0/cursus.html)
+func (api42 *API42) GetCursus(cursusName string) *API42Cursus {
 	var err error
 
 	cursusURL, paramURL := api42.prepareGetParamURLReq(cst.CursusURL)
-	paramURL.Add(cst.ReqFilter + "[name]", cursusName)
+	paramURL.Add(cst.ReqFilter+"[name]", cursusName)
 	cursusURL.RawQuery = paramURL.Encode()
 
 	rsp := api42.executeGetURLReq(cursusURL)
@@ -168,7 +172,7 @@ func (api42 *API42) GetCursus(cursusName string) (*API42Cursus) {
 	if err = decoder.Decode(&rspJSON); err != nil {
 		log.Fatal().Err(err).Msg("GetCursus: Failed to decode JSON values of cursus")
 	}
-	if (len(rspJSON) == 0) {
+	if len(rspJSON) == 0 {
 		log.Error().Msg("GetCursus: no cursus found")
 		return nil
 	}
@@ -176,7 +180,8 @@ func (api42 *API42) GetCursus(cursusName string) (*API42Cursus) {
 	return &rspJSON[0]
 }
 
-func (api42 *API42) UpdateCursus(cursusName string) (*API42Cursus) {
+// UpdateCursus is used to change cursus values in API42 object
+func (api42 *API42) UpdateCursus(cursusName string) *API42Cursus {
 	cursus := api42.GetCursus(cursusName)
 	if cursus == nil {
 		return nil
@@ -185,16 +190,17 @@ func (api42 *API42) UpdateCursus(cursusName string) (*API42Cursus) {
 	return cursus
 }
 
-func (api42 *API42) GetProjects() (*[]API42Project) {
+// GetProjects is used to execute a GET request for projects from 42's API (https://api.intra.42.fr/apidoc/2.0/projects.html)
+func (api42 *API42) GetProjects() *[]API42Project {
 	var err error
 
 	projects := make([]API42Project, 0)
 	projectsURL, paramURL := api42.prepareGetParamURLReq(cst.ProjectsURL)
 	paramURL.Add("cursus_id", strconv.FormatUint(uint64(api42.cursus.ID), 10))
-	paramURL.Add(cst.ReqFilter + "[has_git]", "true")
-	paramURL.Add(cst.ReqFilter + "[has_mark]", "true")
-	paramURL.Add(cst.ReqFilter + "[visible]", "true")
-	paramURL.Add(cst.ReqFilter + "[exam]", "false")
+	paramURL.Add(cst.ReqFilter+"[has_git]", "true")
+	paramURL.Add(cst.ReqFilter+"[has_mark]", "true")
+	paramURL.Add(cst.ReqFilter+"[visible]", "true")
+	paramURL.Add(cst.ReqFilter+"[exam]", "false")
 	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
 
 	for i := 1; ; i++ {
@@ -214,7 +220,7 @@ func (api42 *API42) GetProjects() (*[]API42Project) {
 		if err = decoder.Decode(&rspJSON); err != nil {
 			log.Fatal().Err(err).Msg("GetProjects: Failed to decode JSON values of a project")
 		}
-		if (len(rspJSON) == 0) {
+		if len(rspJSON) == 0 {
 			break
 		}
 		i := 0
@@ -233,7 +239,7 @@ func (api42 *API42) GetProjects() (*[]API42Project) {
 		projects = append(projects, rspJSON...)
 	}
 
-	if (len(projects) == 0) {
+	if len(projects) == 0 {
 		log.Fatal().Msg("GetProjects: no project found")
 		return nil
 	}
@@ -250,16 +256,17 @@ func (api42 *API42) GetProjects() (*[]API42Project) {
 // 	return projects
 // }
 
-func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) (*[]API42ProjectUser) {
+// GetUsersOfProjectsUsers is used to execute a GET request for projects users from 42's API and return all the users found (https://api.intra.42.fr/apidoc/2.0/projects_users.html)
+func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) *[]API42ProjectUser {
 	var err error
 
 	projectIDStr := strconv.FormatUint(uint64(projectID), 10)
 	log.Info().Msg("GetUsersOfProjectsUsers: searching with project ID = " + projectIDStr + " ...")
 	projectsUserURL, paramURL := api42.prepareGetParamURLReq(cst.ProjectsUsersURL)
-	paramURL.Add(cst.ReqFilter + "[project_id]", projectIDStr)
-	paramURL.Add(cst.ReqFilter + "[cursus]", strconv.FormatUint(uint64(api42.cursus.ID), 10))
-	paramURL.Add(cst.ReqFilter + "[campus]", strconv.FormatUint(uint64(api42.campus.ID), 10))
-	paramURL.Add(cst.ReqFilter + "[marked]", "true")
+	paramURL.Add(cst.ReqFilter+"[project_id]", projectIDStr)
+	paramURL.Add(cst.ReqFilter+"[cursus]", strconv.FormatUint(uint64(api42.cursus.ID), 10))
+	paramURL.Add(cst.ReqFilter+"[campus]", strconv.FormatUint(uint64(api42.campus.ID), 10))
+	paramURL.Add(cst.ReqFilter+"[marked]", "true")
 	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
 	projectsUserURL.RawQuery = paramURL.Encode()
 
@@ -281,25 +288,25 @@ func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) (*[]API42ProjectUser
 		if err = decoder.Decode(&rspJSON); err != nil {
 			log.Fatal().Err(err).Msg("GetUsersOfProjectsUsers: Failed to decode JSON values of a project user")
 		}
-		if (len(rspJSON) == 0) {
+		if len(rspJSON) == 0 {
 			break
 		}
 		projectsUsers = append(projectsUsers, rspJSON...)
 	}
 
-	if (len(projectsUsers) == 0) {
+	if len(projectsUsers) == 0 {
 		log.Error().Msg("GetUsersOfProjectsUsers: no project user found")
 		return nil
 	}
 	log.Info().Msg("GetUsersOfProjectsUsers: Get all projects users")
 	for index, projectUser := range projectsUsers {
 		fmt.Print(index)
-		fmt.Println(": "+ projectUser.User.Login)
+		fmt.Println(": " + projectUser.User.Login)
 	}
 	return &projectsUsers
 }
 
-// New create new API42 obj
+// New create a new API42 object
 func New(flags []interface{}) *API42 {
 	tmp := API42{}
 	tmp.initKeys()
@@ -318,7 +325,5 @@ func New(flags []interface{}) *API42 {
 		tmp.campus = &API42Campus{cst.DefaultCampusID, cst.DefaultCampusName}
 		tmp.cursus = &API42Cursus{cst.DefaultCursusID, cst.DefaultCursusName}
 	}
-	// tmp.UpdateProjects()
-	// tmp.UpdateLocations()
 	return &tmp
 }

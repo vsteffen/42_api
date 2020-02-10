@@ -1,19 +1,22 @@
 package reqAPI42
 
 import (
-	"time"
-	"strings"
 	"encoding/json"
+	"strings"
+	"time"
 )
 
+// JSONProjectParent is used to decode JSON values from API 42 for project parent
 type JSONProjectParent struct {
 	API42ProjectParent
 }
 
+// JSONTime is used to decode JSON values from API 42 for time
 type JSONTime struct {
 	time.Time
 }
 
+// UnmarshalJSON is used to deserialize JSONTime
 func (jsonVal *JSONTime) UnmarshalJSON(b []byte) error {
 	str := string(b)
 	if str == "null" {
@@ -29,6 +32,7 @@ func (jsonVal *JSONTime) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// UnmarshalJSON is used to deserialize JSONProjectParent
 func (jsonVal *JSONProjectParent) UnmarshalJSON(b []byte) error {
 	str := string(b)
 
