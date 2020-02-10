@@ -134,7 +134,7 @@ func getIndexNameChoice(items []string) int {
 	return indexProjectFind
 }
 
-func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogged *map[uint]*reqAPI42.API42Location) {
+func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogged *map[uint]*reqAPI42.API42Location, usersLvl21 *[]*reqAPI42.API42User) {
 	if allProjects == nil {
 		log.Error().Msg("Prompt: list of projects empty")
 		return
@@ -185,11 +185,31 @@ func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogg
 	if projectsUsers == nil {
 		return
 	}
+
 	var i uint = 1
-	for _, projectsUsers := range *projectsUsers {
-		if examinerLogged, ok := (*usersLogged)[projectsUsers.User.ID]; ok {
-			fmt.Printf("%-2d: %-8s %-8s - %s\n", i, examinerLogged.Host, examinerLogged.User.Login, cst.ProfileUserURL+examinerLogged.User.Login)
-			i++
+	if projectsUsers != nil && len(*projectsUsers) > 0 {
+		fmt.Println("Users which did or are doing \"" + (*projectSelected).Name + "\":")
+		for _, projectsUsers := range *projectsUsers {
+			if examinerLogged, ok := (*usersLogged)[projectsUsers.User.ID]; ok {
+				fmt.Printf("%-2d: %-8s %-8s - %s\n", i, examinerLogged.Host, examinerLogged.User.Login, cst.ProfileUserURL+examinerLogged.User.Login)
+				i++
+			}
+		}
+		if i == 1 {
+			fmt.Println("No user which did or is doing \"" + (*projectSelected).Name + "\" is logged in")
+		}
+	}
+	if usersLvl21 != nil {
+		fmt.Println("Users level 21:")
+		i = 1
+		for _, userLvl21 := range *usersLvl21 {
+			if examinerLogged, ok := (*usersLogged)[userLvl21.ID]; ok {
+				fmt.Printf("%-2d: %-8s %-8s - %s\n", i, examinerLogged.Host, examinerLogged.User.Login, cst.ProfileUserURL+examinerLogged.User.Login)
+				i++
+			}
+		}
+		if i == 1 {
+			fmt.Println("No user level21 is logged in")
 		}
 	}
 	if i == 1 {
@@ -233,6 +253,19 @@ func locationsToUsersIDMap(locations *[]reqAPI42.API42Location, me *reqAPI42.API
 	return &usersLogged
 }
 
+func filterLvl21InCursusUser(cursusUsers *[]reqAPI42.API42CursusUser) *[]*reqAPI42.API42User {
+	if cursusUsers == nil {
+		return nil
+	}
+	usersLvl21 := make([]*reqAPI42.API42User, 0)
+	for index, cursusUser := range *cursusUsers {
+		if cursusUser.Level >= 21.0 {
+			usersLvl21 = append(usersLvl21, &(*cursusUsers)[index].User)
+		}
+	}
+	return &usersLvl21
+}
+
 func debugPrintProjectsPerType(allProjects *projectsPerType) {
 	fmt.Println("###################################")
 	for _, parent := range allProjects.parents {
@@ -253,6 +286,7 @@ func main() {
 	flags := []interface{}{}
 	flags = append(flags, flag.Bool("refresh", false, "force to refresh token"))
 	flags = append(flags, flag.Bool("check-default-values", false, "send a request to verify the default values"))
+	flags = append(flags, flag.Bool("no-check-lvl21", false, "don't send a request (send by default) to check users lvl 21 logged in"))
 	flag.Parse()
 	nonFlags := flag.Args()
 	if len(nonFlags) > 0 {
@@ -267,6 +301,10 @@ func main() {
 	api42 := reqAPI42.New(flags)
 	allProjects := sortProjectsPerType(api42.GetProjects())
 	usersLogged := locationsToUsersIDMap(api42.GetLocations(), api42.GetMe())
+	var usersLvl21 *[]*reqAPI42.API42User
+	if *flags[2].(*bool) == false {
+		usersLvl21 = filterLvl21InCursusUser(api42.GetCursusUsers())
+	}
 
 	var indexAction int
 	var err error
@@ -274,6 +312,7 @@ func main() {
 		cst.MenuActionFind,
 		cst.MenuActionUpdateLocations,
 		cst.MenuActionUpdateProjects,
+		cst.MenuActionUpdateUsersLvl21,
 		cst.MenuActionUpdateCursus,
 		cst.MenuActionUpdateCampus,
 		cst.MenuActionRefreshTokens,
@@ -294,11 +333,13 @@ func main() {
 
 		switch menuActions[indexAction] {
 		case cst.MenuActionFind:
-			findExaminer(api42, allProjects, usersLogged)
+			findExaminer(api42, allProjects, usersLogged, usersLvl21)
 		case cst.MenuActionUpdateLocations:
 			usersLogged = locationsToUsersIDMap(api42.GetLocations(), api42.GetMe())
 		case cst.MenuActionUpdateProjects:
 			allProjects = sortProjectsPerType(api42.GetProjects())
+		case cst.MenuActionUpdateUsersLvl21:
+			usersLvl21 = filterLvl21InCursusUser(api42.GetCursusUsers())
 		case cst.MenuActionUpdateCursus:
 			cursusName := askStringClean("Please, enter the cursus name: ")
 			api42.UpdateCursus(cursusName)

@@ -27,6 +27,12 @@ type API42Cursus struct {
 	Name string `json:"name"`
 }
 
+// API42CursusUser object from API 42 (https://api.intra.42.fr/apidoc/2.0/cursus_users.html)
+type API42CursusUser struct {
+	Level float32   `json:"level"`
+	User  API42User `json:"user"`
+}
+
 // API42Campus object from API 42 (https://api.intra.42.fr/apidoc/2.0/campus.html)
 type API42Campus struct {
 	ID   uint   `json:"id"`

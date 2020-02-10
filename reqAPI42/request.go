@@ -324,6 +324,50 @@ func (api42 *API42) GetMe() *API42User {
 	return &rspJSON
 }
 
+// GetCursusUsers is used to execute a GET request for cursus users from 42's API (https://api.intra.42.fr/apidoc/2.0/cursus_users.html)
+func (api42 *API42) GetCursusUsers() *[]API42CursusUser {
+	var err error
+
+	log.Info().Msg("GetCursusUsers: searching cursus users ...")
+	cursusUsersURL, paramURL := api42.prepareGetParamURLReq(cst.CursusUsersURL)
+	paramURL.Add(cst.ReqFilter+"[cursus_id]", strconv.FormatUint(uint64(api42.cursus.ID), 10))
+	paramURL.Add(cst.ReqFilter+"[campus_id]", strconv.FormatUint(uint64(api42.campus.ID), 10))
+	paramURL.Add(cst.ReqFilter+"[active]", "true")
+	paramURL.Add(cst.ReqPageSize, cst.ReqPageSizeMax)
+	cursusUsersURL.RawQuery = paramURL.Encode()
+
+	cursusUsers := make([]API42CursusUser, 0)
+	for i := 1; ; i++ {
+		pageNumberStr := strconv.Itoa(i)
+		log.Info().Msg("GetCursusUsers: GET page " + pageNumberStr + " ...")
+		paramURL.Set(cst.ReqPage, pageNumberStr)
+		cursusUsersURL.RawQuery = paramURL.Encode()
+
+		rsp := api42.executeGetURLReq(cursusUsersURL)
+		if rsp == nil {
+			return nil
+		}
+		defer rsp.Body.Close()
+
+		rspJSON := make([]API42CursusUser, 0)
+		decoder := json.NewDecoder(rsp.Body)
+		if err = decoder.Decode(&rspJSON); err != nil {
+			log.Fatal().Err(err).Msg("GetCursusUsers: Failed to decode JSON values of a cursus user")
+		}
+		if len(rspJSON) == 0 {
+			break
+		}
+		cursusUsers = append(cursusUsers, rspJSON...)
+	}
+
+	if len(cursusUsers) == 0 {
+		log.Error().Msg("GetCursusUsers: no cursus user found")
+		return nil
+	}
+	log.Info().Msg("GetCursusUsers: Get all cursus users")
+	return &cursusUsers
+}
+
 // New create a new API42 object
 func New(flags []interface{}) *API42 {
 	tmp := API42{}
