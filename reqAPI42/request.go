@@ -256,7 +256,7 @@ func (api42 *API42) GetProjects() *[]API42Project {
 // 	return projects
 // }
 
-// GetUsersOfProjectsUsers is used to execute a GET request for projects users from 42's API and return all the users found (https://api.intra.42.fr/apidoc/2.0/projects_users.html)
+// GetUsersOfProjectsUsers is used to execute a GET request for projects users from 42's API (https://api.intra.42.fr/apidoc/2.0/projects_users.html)
 func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) *[]API42ProjectUser {
 	var err error
 
@@ -299,10 +299,6 @@ func (api42 *API42) GetUsersOfProjectsUsers(projectID uint) *[]API42ProjectUser 
 		return nil
 	}
 	log.Info().Msg("GetUsersOfProjectsUsers: Get all projects users")
-	for index, projectUser := range projectsUsers {
-		fmt.Print(index)
-		fmt.Println(": " + projectUser.User.Login)
-	}
 	return &projectsUsers
 }
 

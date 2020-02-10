@@ -58,6 +58,9 @@ const (
 
 	FindNameMaxResults = 3
 
+	ProfileURL     = "https://profile.intra.42.fr"
+	ProfileUserURL = ProfileURL + "/users/"
+
 	MaxUint = ^uint(0)
 	MaxInt  = int(MaxUint >> 1)
 )

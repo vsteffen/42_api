@@ -134,7 +134,7 @@ func getIndexNameChoice(items []string) int {
 	return indexProjectFind
 }
 
-func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogged *map[uint]*reqAPI42.API42User) {
+func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogged *map[uint]*reqAPI42.API42Location) {
 	if allProjects == nil {
 		log.Error().Msg("Prompt: list of projects empty")
 		return
@@ -181,7 +181,20 @@ func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogg
 		}
 		projectSelected = projectsFind[indexChoose]
 	}
-	api42.GetUsersOfProjectsUsers((*projectSelected).ID)
+	projectsUsers := api42.GetUsersOfProjectsUsers((*projectSelected).ID)
+	if projectsUsers == nil {
+		return
+	}
+	var i uint = 1
+	for _, projectsUsers := range *projectsUsers {
+		if examinerLogged, ok := (*usersLogged)[projectsUsers.User.ID]; ok {
+			fmt.Printf("%-2d: %-8s %-8s - %s\n", i, examinerLogged.Host, examinerLogged.User.Login, cst.ProfileUserURL+examinerLogged.User.Login)
+			i++
+		}
+	}
+	if i == 1 {
+		log.Error().Msg("findExaminer: no examiner available")
+	}
 }
 
 func sortProjectsPerType(api42Projects *[]reqAPI42.API42Project) *projectsPerType {
@@ -206,13 +219,13 @@ func sortProjectsPerType(api42Projects *[]reqAPI42.API42Project) *projectsPerTyp
 	return &allProjects
 }
 
-func locationsToUsersMap(locations *[]reqAPI42.API42Location) *map[uint]*reqAPI42.API42User {
+func locationsToUsersMap(locations *[]reqAPI42.API42Location) *map[uint]*reqAPI42.API42Location {
 	if locations == nil {
 		return nil
 	}
-	usersLogged := make(map[uint]*reqAPI42.API42User)
+	usersLogged := make(map[uint]*reqAPI42.API42Location)
 	for index := range *locations {
-		usersLogged[(*locations)[index].User.ID] = &(*locations)[index].User
+		usersLogged[(*locations)[index].User.ID] = &(*locations)[index]
 	}
 	return &usersLogged
 }
@@ -300,15 +313,3 @@ func main() {
 
 	}
 }
-
-/*
---> Update locations
---> Update campus
---> Update cursus
---> Find project examiner
-	---> Project parent ?
-		---> Search your project
-			---> Show n results or matching project
---> Refresh tokens
---> Exit
-*/
