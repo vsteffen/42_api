@@ -199,20 +199,20 @@ func findExaminer(api42 *reqAPI42.API42, allProjects *projectsPerType, usersLogg
 			fmt.Println("No user which did or is doing \"" + (*projectSelected).Name + "\" is logged in")
 		}
 	}
+	var j uint = 1
 	if usersLvl21 != nil {
 		fmt.Println("Users level 21:")
-		i = 1
 		for _, userLvl21 := range *usersLvl21 {
 			if examinerLogged, ok := (*usersLogged)[userLvl21.ID]; ok {
-				fmt.Printf("%-2d: %-8s %-8s - %s\n", i, examinerLogged.Host, examinerLogged.User.Login, cst.ProfileUserURL+examinerLogged.User.Login)
-				i++
+				fmt.Printf("%-2d: %-8s %-8s - %s\n", j, examinerLogged.Host, examinerLogged.User.Login, cst.ProfileUserURL+examinerLogged.User.Login)
+				j++
 			}
 		}
-		if i == 1 {
+		if j == 1 {
 			fmt.Println("No user level21 is logged in")
 		}
 	}
-	if i == 1 {
+	if i + j == 2 {
 		log.Error().Msg("findExaminer: no examiner available")
 	}
 }
